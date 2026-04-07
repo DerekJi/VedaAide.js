@@ -27,15 +27,19 @@ model VectorChunk {
   @@index([contentHash])
 }
 
-/// Stores prompt templates for different use cases
+/// Stores prompt templates for different use cases with version support
 model PromptTemplate {
   id          String   @id @default(cuid())
-  name        String   @unique
-  template    String
+  name        String
+  content     String   // Prompt content (was 'template' in v1, renamed for clarity)
+  version     Int      @default(1)
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@unique([name, version])
+  @@index([name, isActive])
 }
 
 /// Tracks files that have been synced/ingested
