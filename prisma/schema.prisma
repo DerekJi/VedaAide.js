@@ -1,0 +1,54 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Stores document chunks with their vector embeddings
+model VectorChunk {
+  id          String   @id @default(cuid())
+  content     String
+  embedding   String   // JSON-encoded float array
+  metadata    String   @default("{}") // JSON-encoded metadata object
+  fileId      String?
+  syncedFile  SyncedFile? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([fileId])
+}
+
+/// Stores prompt templates for different use cases
+model PromptTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  template    String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Tracks files that have been synced/ingested
+model SyncedFile {
+  id          String   @id @default(cuid())
+  name        String
+  source      String   // file path or blob URL
+  contentHash String   // SHA-256 of file content for deduplication
+  chunkCount  Int      @default(0)
+  status      String   @default("pending") // pending | processing | completed | failed
+  errorMessage String?
+  chunks      VectorChunk[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([source])
+  @@index([contentHash])
+  @@index([status])
+}
