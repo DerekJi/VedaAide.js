@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, "feature/*"]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
   ci:
@@ -49,3 +49,8 @@ jobs:
 
       - name: Docker build test
         run: docker build -t vedaaide-js:test .
+
+      # 仅 main 分支 push 时才推送镜像和部署（如有需要，可扩展）
+      # - name: Docker push (main only)
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   run: echo "这里可以添加 docker push/publish 步骤"
