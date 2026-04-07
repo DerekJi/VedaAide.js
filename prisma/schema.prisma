@@ -15,6 +15,7 @@ datasource db {
 model VectorChunk {
   id          String   @id @default(cuid())
   content     String
+  contentHash String?  // SHA-256 of chunk content for chunk-level deduplication
   embedding   String   // JSON-encoded float array
   metadata    String   @default("{}") // JSON-encoded metadata object
   fileId      String?
@@ -23,6 +24,7 @@ model VectorChunk {
   updatedAt   DateTime @updatedAt
 
   @@index([fileId])
+  @@index([contentHash])
 }
 
 /// Stores prompt templates for different use cases

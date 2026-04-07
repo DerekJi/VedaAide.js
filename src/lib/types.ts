@@ -11,6 +11,7 @@ export type Embedding = number[];
 export interface VectorDocument {
   id?: string;
   content: string;
+  contentHash?: string; // SHA-256 of content for chunk-level deduplication
   embedding: Embedding;
   metadata?: Record<string, unknown>;
   fileId?: string;
