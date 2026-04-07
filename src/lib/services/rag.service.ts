@@ -4,6 +4,7 @@ import { RagError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { ChunkingService } from "@/lib/services/chunking.service";
 import { DeduplicationService } from "@/lib/services/deduplication.service";
+import { HallucinationGuardService } from "@/lib/services/hallucination-guard.service";
 import { SqliteVectorStore } from "@/lib/vector-store/sqlite-vector-store";
 import type { IEmbeddingService } from "@/lib/services/embedding.service";
 import type { IChatService } from "@/lib/services/chat.service";
@@ -24,16 +25,19 @@ export class RagService {
   private readonly chunker: ChunkingService;
   private readonly vectorStore: IVectorStore;
   private readonly dedupService: DeduplicationService;
+  private readonly hallucinationGuard?: HallucinationGuardService;
 
   constructor(
     private readonly embeddingService: IEmbeddingService,
     private readonly chatService: IChatService,
     vectorStore?: IVectorStore,
     dedupService?: DeduplicationService,
+    hallucinationGuard?: HallucinationGuardService,
   ) {
     this.chunker = new ChunkingService();
     this.vectorStore = vectorStore ?? new SqliteVectorStore();
     this.dedupService = dedupService ?? new DeduplicationService();
+    this.hallucinationGuard = hallucinationGuard;
   }
 
   // ── Ingest pipeline ─────────────────────────────────────────────────────────
@@ -191,12 +195,27 @@ export class RagService {
         systemPrompt: RAG_SYSTEM_PROMPT,
       });
 
-      logger.info({ traceId, topK, sourcesFound: sources.length }, "query: completed");
+      // 5. Hallucination detection (dual-layer, optional)
+      let isHallucination = false;
+      if (this.hallucinationGuard) {
+        const contextTexts = sources.map((s) => s.content);
+        const guardResult = await this.hallucinationGuard.check(answer, contextTexts);
+        isHallucination = guardResult.isHallucination;
+        logger.debug(
+          { isHallucination, confidence: guardResult.confidence, traceId },
+          "query: hallucination check",
+        );
+      }
+
+      logger.info(
+        { traceId, topK, sourcesFound: sources.length, isHallucination },
+        "query: completed",
+      );
 
       return {
         answer,
         sources,
-        isHallucination: false, // Phase 2 implementation
+        isHallucination,
         traceId,
       };
     } catch (cause) {
