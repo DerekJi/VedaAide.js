@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/data/dev.db
+      # Azure services – configure via environment or Managed Identity
+      - DEPLOYMENT_MODE=false
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME:-gpt-4o}
+      - AZURE_COSMOS_ENDPOINT=${AZURE_COSMOS_ENDPOINT:-}
+      - AZURE_COSMOS_KEY=${AZURE_COSMOS_KEY:-}
+      - AZURE_COSMOS_DATABASE=${AZURE_COSMOS_DATABASE:-vedaaide}
+      - AZURE_COSMOS_CONTAINER=${AZURE_COSMOS_CONTAINER:-vectors}
+      - AZURE_BLOB_ACCOUNT_NAME=${AZURE_BLOB_ACCOUNT_NAME:-}
+      - AZURE_BLOB_ACCOUNT_KEY=${AZURE_BLOB_ACCOUNT_KEY:-}
+      - AZURE_BLOB_CONTAINER_NAME=${AZURE_BLOB_CONTAINER_NAME:-documents}
+      - LOG_LEVEL=info
+    volumes:
+      - sqlite-data:/data
+
+volumes:
+  sqlite-data:

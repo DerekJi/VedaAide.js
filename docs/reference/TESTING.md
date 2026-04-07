@@ -1,0 +1,3 @@
+# Testing Guide
+
+// ...existing content from TESTING.md...

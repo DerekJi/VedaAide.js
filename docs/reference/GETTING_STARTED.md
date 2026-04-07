@@ -1,0 +1,3 @@
+# Getting Started
+
+// ...existing content from GETTING_STARTED.md...
