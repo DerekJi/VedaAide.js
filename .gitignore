@@ -43,3 +43,6 @@ npm-debug.log*
 
 # Test results
 test-results/
+
+# TypeScript build info
+tsconfig.tsbuildinfo
