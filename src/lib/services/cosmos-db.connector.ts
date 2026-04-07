@@ -37,7 +37,12 @@ export class CosmosDbConnector {
       "Content-Type": "application/json",
       "x-ms-date": date,
       "x-ms-version": "2018-12-31",
-      ...(this.key ? { Authorization: `type=master&ver=1.0&sig=${this.key}` } : {}),
+      // NOTE: In production, use Managed Identity (DefaultAzureCredential) for authentication.
+      // The key-based auth below is a simplified placeholder; full HMAC-SHA256 signing
+      // per the Cosmos DB REST API spec is required for actual key-based access.
+      ...(this.key
+        ? { Authorization: `type=master&ver=1.0&sig=${encodeURIComponent(this.key)}` }
+        : {}),
       ...extra,
     };
   }

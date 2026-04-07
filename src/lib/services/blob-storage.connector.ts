@@ -35,6 +35,9 @@ export class BlobStorageConnector {
     return {
       "x-ms-version": "2020-04-08",
       "x-ms-date": new Date().toUTCString(),
+      // NOTE: In production, use Managed Identity (DefaultAzureCredential) for auth.
+      // The SharedKey auth below is a placeholder; full HMAC-SHA256 signing
+      // per the Azure Blob Storage REST API spec is required for key-based access.
       ...(this.accountKey
         ? { Authorization: `SharedKey ${this.accountName}:${this.accountKey}` }
         : {}),

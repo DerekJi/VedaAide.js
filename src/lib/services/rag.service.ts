@@ -38,7 +38,7 @@ export class RagService {
   async ingest(request: IngestRequest): Promise<IngestResult> {
     const contentHash = sha256(request.content);
 
-    // Deduplication: skip if already ingested
+    // Deduplication: skip if content hash already exists
     const existing = await prisma.syncedFile.findFirst({
       where: { contentHash },
     });
@@ -53,15 +53,35 @@ export class RagService {
       };
     }
 
-    // Create SyncedFile record
-    const syncedFile = await prisma.syncedFile.create({
-      data: {
-        name: request.source.split("/").pop() ?? request.source,
-        source: request.source,
-        contentHash,
-        status: "processing",
-      },
-    });
+    // Create or reset SyncedFile record (source may already exist with old content)
+    let syncedFile: { id: string };
+    try {
+      syncedFile = await prisma.syncedFile.upsert({
+        where: { source: request.source },
+        create: {
+          name: request.source.split("/").pop() ?? request.source,
+          source: request.source,
+          contentHash,
+          status: "processing",
+        },
+        update: {
+          contentHash,
+          status: "processing",
+          chunkCount: 0,
+          errorMessage: null,
+        },
+      });
+    } catch (cause) {
+      throw new RagError(
+        `Failed to create/update file record for "${request.source}": ${String(cause)}`,
+        "RAG_INGEST_FAILED",
+        cause,
+      );
+    }
+
+    // Delete old chunks if re-ingesting
+    const vectorStore = this.vectorStore;
+    await vectorStore.deleteByFileId(syncedFile.id);
 
     try {
       // Chunk the document

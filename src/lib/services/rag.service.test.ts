@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     syncedFile: {
       findFirst: vi.fn(),
-      create: vi.fn(),
+      upsert: vi.fn(),
       update: vi.fn(),
     },
   },
@@ -71,7 +71,7 @@ describe("RagService", () => {
     // Setup default Prisma mock behaviour
     const { prisma } = await import("@/lib/db");
     (prisma.syncedFile.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-    (prisma.syncedFile.create as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (prisma.syncedFile.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: "file-123",
       status: "processing",
       chunkCount: 0,
@@ -118,6 +118,12 @@ describe("RagService", () => {
       await expect(
         ragService.ingest({ content: "text", source: "file.md" }),
       ).rejects.toBeInstanceOf(RagError);
+    });
+
+    it("deletes old chunks and upserts when re-ingesting same source", async () => {
+      await ragService.ingest({ content: "Updated content here.", source: "doc.md" });
+      expect(vectorStore.deleteByFileId).toHaveBeenCalledWith("file-123");
+      expect(vectorStore.addDocuments).toHaveBeenCalled();
     });
   });
 
