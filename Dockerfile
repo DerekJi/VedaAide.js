@@ -1,29 +1,21 @@
 # Multi-stage build for production
 
-# ── Dependencies ──────────────────────────────────────────────────────────────
-FROM node:24-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts
-
 # ── Builder ───────────────────────────────────────────────────────────────────
-FROM node:24-alpine AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci
+RUN npm ci --ignore-scripts
 COPY . .
-RUN npm run db:generate
-RUN npm run build
+RUN chmod -R 755 node_modules/.bin && npm run build
 
 # ── Runner ────────────────────────────────────────────────────────────────────
-FROM node:24-alpine AS runner
+FROM node:24-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN useradd -m -u 1001 nextjs
 
 # Copy built artifacts
 COPY --from=builder /app/.next/standalone ./
