@@ -13,7 +13,13 @@ export type ErrorCode =
   | "AZURE_CONNECTION_FAILED"
   | "DB_ERROR"
   | "VALIDATION_ERROR"
-  | "NOT_CONFIGURED";
+  | "NOT_CONFIGURED"
+  | "DOCUMENT_LOADER_UNSUPPORTED_TYPE"
+  | "DOCUMENT_LOADER_FAILED"
+  | "RERANKING_FAILED"
+  | "AGENT_FAILED"
+  | "MCP_FAILED"
+  | "SYNC_FAILED";
 
 export class VedaError extends Error {
   readonly code: ErrorCode;
