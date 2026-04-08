@@ -25,7 +25,12 @@ describe("DataSourceSyncService", () => {
     });
 
     it("accepts initial connectors via constructor", async () => {
-      const c = makeConnector("fs", { processed: 1, skipped: 0, errors: [] });
+      const c = makeConnector("fs", {
+        filesProcessed: 1,
+        filesSkipped: 0,
+        filesError: 0,
+        errors: [],
+      });
       const svc = new DataSourceSyncService([c]);
       const result = await svc.syncAll();
       expect(result.connectors).toHaveLength(1);
@@ -33,7 +38,9 @@ describe("DataSourceSyncService", () => {
 
     it("register() adds a connector after construction", async () => {
       const svc = new DataSourceSyncService();
-      svc.register(makeConnector("fs", { processed: 2, skipped: 0, errors: [] }));
+      svc.register(
+        makeConnector("fs", { filesProcessed: 2, filesSkipped: 0, filesError: 0, errors: [] }),
+      );
       const result = await svc.syncAll();
       expect(result.connectors).toHaveLength(1);
     });
@@ -53,7 +60,12 @@ describe("DataSourceSyncService", () => {
     });
 
     it("returns success result for a healthy connector", async () => {
-      const syncResult: SyncResult = { processed: 5, skipped: 1, errors: [] };
+      const syncResult: SyncResult = {
+        filesProcessed: 5,
+        filesSkipped: 1,
+        filesError: 0,
+        errors: [],
+      };
       svc.register(makeConnector("file-system", syncResult));
 
       const result = await svc.syncAll();
@@ -63,7 +75,12 @@ describe("DataSourceSyncService", () => {
     });
 
     it("captures error and continues when one connector throws", async () => {
-      const goodResult: SyncResult = { processed: 3, skipped: 0, errors: [] };
+      const goodResult: SyncResult = {
+        filesProcessed: 3,
+        filesSkipped: 0,
+        filesError: 0,
+        errors: [],
+      };
       svc.register(makeConnector("good", goodResult));
       svc.register(makeConnector("bad", new Error("network timeout")));
 
@@ -78,16 +95,24 @@ describe("DataSourceSyncService", () => {
     });
 
     it("records durationMs for the entire run", async () => {
-      svc.register(makeConnector("c1", { processed: 1, skipped: 0, errors: [] }));
+      svc.register(
+        makeConnector("c1", { filesProcessed: 1, filesSkipped: 0, filesError: 0, errors: [] }),
+      );
       const result = await svc.syncAll();
       expect(typeof result.durationMs).toBe("number");
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
     });
 
     it("handles multiple connectors and aggregates all results", async () => {
-      svc.register(makeConnector("c1", { processed: 1, skipped: 0, errors: [] }));
-      svc.register(makeConnector("c2", { processed: 2, skipped: 1, errors: ["e1"] }));
-      svc.register(makeConnector("c3", { processed: 0, skipped: 0, errors: [] }));
+      svc.register(
+        makeConnector("c1", { filesProcessed: 1, filesSkipped: 0, filesError: 0, errors: [] }),
+      );
+      svc.register(
+        makeConnector("c2", { filesProcessed: 2, filesSkipped: 1, filesError: 0, errors: ["e1"] }),
+      );
+      svc.register(
+        makeConnector("c3", { filesProcessed: 0, filesSkipped: 0, filesError: 0, errors: [] }),
+      );
 
       const result = await svc.syncAll();
       expect(result.connectors).toHaveLength(3);

@@ -28,22 +28,41 @@ vi.mock("@/lib/services/ollama-chat.service", () => ({
 
 vi.mock("@/lib/services/rag.service", () => ({
   RagService: vi.fn().mockImplementation(() => ({
+    chunker: null,
+    vectorStore: null,
+    dedupService: null,
+    hallucinationGuard: null,
     ingest: vi.fn().mockResolvedValue({
       fileId: "file-1",
       source: "test.md",
       chunkCount: 3,
       skipped: false,
     }),
-  })),
+    query: vi.fn().mockResolvedValue({
+      answer: "Test answer",
+      sources: [],
+      isHallucination: false,
+    }),
+    queryStream: vi.fn(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  })) as any,
 }));
 
 vi.mock("@/lib/vector-store/langchain-sqlite-vector-store", () => ({
   LangChainSqliteVectorStore: vi.fn().mockImplementation(() => ({
+    FilterType: {},
+    prisma: null,
+    _vectorstoreType: () => "sqlite",
+    addVectors: vi.fn().mockResolvedValue([]),
+    addDocuments: vi.fn().mockResolvedValue([]),
     similaritySearch: vi
       .fn()
       .mockResolvedValue([{ pageContent: "relevant chunk", metadata: { source: "doc.md" } }]),
+    similaritySearchVectorWithScore: vi.fn(),
+    deleteByFileId: vi.fn(),
     asRetriever: vi.fn().mockReturnValue({}),
-  })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  })) as any,
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,10 +110,23 @@ describe("searchKnowledgeBaseTool", () => {
   it("handles errors gracefully and returns JSON error", async () => {
     const { LangChainSqliteVectorStore } =
       await import("@/lib/vector-store/langchain-sqlite-vector-store");
-    vi.mocked(LangChainSqliteVectorStore).mockImplementationOnce(() => ({
-      similaritySearch: vi.fn().mockRejectedValue(new Error("DB down")),
-      asRetriever: vi.fn(),
-    }));
+    vi.mocked(LangChainSqliteVectorStore).mockImplementationOnce(
+      () =>
+        ({
+          FilterType: {},
+          prisma: null,
+          embeddingsInstance: null,
+          embeddings: null,
+          _vectorstoreType: () => "sqlite",
+          addVectors: vi.fn(),
+          addDocuments: vi.fn(),
+          similaritySearch: vi.fn().mockRejectedValue(new Error("DB down")),
+          similaritySearchVectorWithScore: vi.fn(),
+          deleteByFileId: vi.fn(),
+          asRetriever: vi.fn(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as any,
+    );
 
     const raw = await searchKnowledgeBaseTool.invoke({ query: "fail", topK: 1 });
     const result = JSON.parse(raw);
@@ -121,11 +153,21 @@ describe("ingestDocumentTool", () => {
 
   it("handles errors gracefully and returns JSON error", async () => {
     const { RagService } = await import("@/lib/services/rag.service");
-    vi.mocked(RagService).mockImplementationOnce(() => ({
-      ingest: vi.fn().mockRejectedValue(new Error("ingest failed")),
-      query: vi.fn(),
-      queryStream: vi.fn(),
-    }));
+    vi.mocked(RagService).mockImplementationOnce(
+      () =>
+        ({
+          chunker: null,
+          vectorStore: null,
+          dedupService: null,
+          embeddingService: null,
+          chatService: null,
+          hallucinationGuard: null,
+          ingest: vi.fn().mockRejectedValue(new Error("ingest failed")),
+          query: vi.fn(),
+          queryStream: vi.fn(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as any,
+    );
 
     const raw = await ingestDocumentTool.invoke({
       content: "text",

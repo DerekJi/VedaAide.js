@@ -24,7 +24,7 @@ export const searchKnowledgeBaseTool = new DynamicStructuredTool({
     query: z.string().min(1).describe("The search query"),
     topK: z.number().int().min(1).max(20).default(5).describe("Number of results to return"),
   }),
-  func: async ({ query, topK }) => {
+  func: async ({ query, topK }: { query: string; topK: number }) => {
     try {
       const embeddings = new OllamaEmbeddingService();
       const vectorStore = new LangChainSqliteVectorStore(embeddings);
@@ -60,7 +60,15 @@ export const ingestDocumentTool = new DynamicStructuredTool({
       .describe("A unique identifier for the document (e.g. filename or URL)"),
     metadata: z.record(z.unknown()).optional().describe("Optional metadata key-value pairs"),
   }),
-  func: async ({ content, source, metadata }) => {
+  func: async ({
+    content,
+    source,
+    metadata,
+  }: {
+    content: string;
+    source: string;
+    metadata?: Record<string, unknown>;
+  }) => {
     try {
       const ragService = new RagService(new OllamaEmbeddingService(), new OllamaChatService());
       const result = await ragService.ingest({ content, source, metadata });
@@ -88,7 +96,11 @@ export const listDocumentsTool = new DynamicStructuredTool({
       .default("completed")
       .describe("Filter by sync status"),
   }),
-  func: async ({ status }) => {
+  func: async ({
+    status,
+  }: {
+    status: "pending" | "processing" | "completed" | "failed" | "all";
+  }) => {
     try {
       const where = status === "all" ? {} : { status };
       const files = await prisma.syncedFile.findMany({
