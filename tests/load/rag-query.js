@@ -90,11 +90,9 @@ export default function main() {
   const question = randomItem(SAMPLE_QUESTIONS);
   const startTime = Date.now();
 
-  const res = http.post(
-    `${BASE_URL}/api/query`,
-    JSON.stringify({ question, topK: 5 }),
-    { headers: makeHeaders() },
-  );
+  const res = http.post(`${BASE_URL}/api/query`, JSON.stringify({ question, topK: 5 }), {
+    headers: makeHeaders(),
+  });
 
   const duration = Date.now() - startTime;
   ragQueryDuration.add(duration);
@@ -124,11 +122,7 @@ export function ingestScenario() {
   const doc = randomItem(SAMPLE_DOCUMENTS);
   const startTime = Date.now();
 
-  const res = http.post(
-    `${BASE_URL}/api/ingest`,
-    JSON.stringify(doc),
-    { headers: makeHeaders() },
-  );
+  const res = http.post(`${BASE_URL}/api/ingest`, JSON.stringify(doc), { headers: makeHeaders() });
 
   const duration = Date.now() - startTime;
   ragIngestDuration.add(duration);
