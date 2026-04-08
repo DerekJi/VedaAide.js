@@ -1,11 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
-import { VedaAgent } from "./veda-agent";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mock LangGraph
+// Hoist mocks before any imports (vitest hoists vi.mock() calls)
+// We mock @/lib/db here so PrismaClient is never instantiated during tests,
+// even if the module graph eventually imports tools.ts → db.ts.
 // ─────────────────────────────────────────────────────────────────────────────
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    vectorChunk: { findMany: vi.fn().mockResolvedValue([]) },
+    syncedFile: { findMany: vi.fn().mockResolvedValue([]) },
+  },
+}));
 
 vi.mock("@langchain/langgraph/prebuilt", () => ({
   createReactAgent: vi.fn().mockReturnValue({
@@ -18,6 +25,8 @@ vi.mock("@langchain/langgraph/prebuilt", () => ({
     }),
   }),
 }));
+
+import { VedaAgent } from "./veda-agent";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests

@@ -1,3 +1,3 @@
 # Completion Summary
 
-// ...existing content from COMPLETION_SUMMARY.md...
+> See the canonical completion summary at [docs/handoff/COMPLETION_SUMMARY.md](../handoff/COMPLETION_SUMMARY.md).

@@ -1,3 +1,3 @@
 # Getting Started
 
-// ...existing content from GETTING_STARTED.md...
+> This page has moved. See [docs/guides/GETTING_STARTED.md](../guides/GETTING_STARTED.md).

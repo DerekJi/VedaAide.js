@@ -1,0 +1,44 @@
+# Dependencies (re-installed inside Docker)
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Database files (don't ship test data)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+prisma/migrations/
+
+# Env files — inject via runtime env vars
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Coverage / test artifacts
+coverage/
+test-data/
+
+# Git / IDE / OS
+.git/
+.gitignore
+.dockerignore
+.vscode/
+.idea/
+*.suo
+*.swp
+.DS_Store
+Thumbs.db
+
+# CI/docs (not needed at runtime)
+docs/
+tests/e2e/
+playwright.config.ts
+playwright-report/
+vitest.config.ts
+
+# Dev scripts
+scripts/

@@ -46,3 +46,6 @@ test-results/
 
 # TypeScript build info
 tsconfig.tsbuildinfo
+
+# Temporary tracking documents (not for source control)
+docs/skipped-tasks.md

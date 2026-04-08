@@ -3,11 +3,21 @@
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM node:24-slim AS builder
 WORKDIR /app
+
+# Install OS-level deps required by Prisma query engine on Debian/Ubuntu
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci --ignore-scripts
+
+# Install all deps + auto-runs `prisma generate` via postinstall hook
+RUN npm ci
+
+# Copy application source (node_modules already present from previous layer)
 COPY . .
-RUN chmod -R 755 node_modules/.bin && npm run build
+
+# Build Next.js application
+RUN npm run build
 
 # ── Runner ────────────────────────────────────────────────────────────────────
 FROM node:24-slim AS runner
