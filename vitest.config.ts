@@ -31,6 +31,9 @@ export default defineConfig({
         "src/lib/services/blob-storage.connector.ts",
         "src/lib/services/cosmos-db.connector.ts",
         "src/lib/datasources/file-system.connector.ts",
+        // Static data / SDK wrappers — no unit-testable logic
+        "src/lib/openapi/spec.ts",
+        "src/lib/monitoring/application-insights.ts",
       ],
     },
   },
