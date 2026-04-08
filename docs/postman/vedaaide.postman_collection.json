@@ -1,0 +1,359 @@
+{
+  "info": {
+    "_postman_id": "vedaaide-api-collection-v1",
+    "name": "VedaAide API",
+    "description": "VedaAide REST API collection — Retrieval-Augmented Generation assistant.\n\nImport this collection into Postman, set the `baseUrl` environment variable, and run the requests.\n\nEnvironment variables required:\n- `baseUrl`: e.g. `http://localhost:3000`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Service health check. Returns status, timestamp, and version."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has status ok', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('ok');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RAG Query",
+      "item": [
+        {
+          "name": "POST /api/query",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is Retrieval-Augmented Generation?\",\n  \"topK\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/query",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "query"]
+            },
+            "description": "Submit a question; retrieves relevant chunks and generates an answer."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has answer', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.answer).to.be.a('string');",
+                  "  pm.expect(body.isHallucination).to.be.a('boolean');",
+                  "  pm.expect(body.sources).to.be.an('array');",
+                  "  pm.expect(body.traceId).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/query — validation error",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/query",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "query"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Status is 400', () => pm.response.to.have.status(400));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/query/stream (SSE)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Explain vector embeddings briefly.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/query/stream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "query", "stream"]
+            },
+            "description": "Streaming RAG query via Server-Sent Events. Open the response body to see token-by-token output."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ingest",
+      "item": [
+        {
+          "name": "GET /api/ingest",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ingest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ingest"]
+            },
+            "description": "List all previously ingested files."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/ingest",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"# Sample Document\\n\\nThis is a test document for the VedaAide RAG system.\",\n  \"source\": \"postman-test.md\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ingest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ingest"]
+            },
+            "description": "Ingest a document into the knowledge base."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 or 201', () => {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Has fileId', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.fileId).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Prompts",
+      "item": [
+        {
+          "name": "GET /api/prompts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/prompts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prompts"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/prompts",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"system-prompt\",\n  \"content\": \"You are a helpful AI assistant. Answer questions based on the provided context.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prompts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prompts"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('promptId', body.id);",
+                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /api/prompts/:id",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"system-prompt\",\n  \"content\": \"You are an expert AI assistant. Always cite your sources.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prompts/{{promptId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prompts", "{{promptId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /api/prompts/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/prompts/{{promptId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prompts", "{{promptId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Data Sources",
+      "item": [
+        {
+          "name": "POST /api/datasources/sync",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/datasources/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "datasources", "sync"]
+            },
+            "description": "Trigger a manual sync of all registered data source connectors."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has connectors and durationMs', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.connectors).to.be.an('array');",
+                  "  pm.expect(body.durationMs).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OpenAPI Spec",
+      "item": [
+        {
+          "name": "GET /api/openapi",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/openapi",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "openapi"]
+            },
+            "description": "Returns the full OpenAPI 3.0 specification for this API."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Is OpenAPI 3.0', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.openapi).to.eql('3.0.0');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
