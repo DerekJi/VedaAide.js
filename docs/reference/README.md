@@ -1,5 +1,14 @@
-# 项目主文档
+# Reference
 
-请参阅 docs/guides/、docs/testing/、docs/faq/、docs/handoff/ 等子目录获取详细文档。
+| Document                               | Description                                   |
+| -------------------------------------- | --------------------------------------------- |
+| [DEPLOYMENT.md](DEPLOYMENT.md)         | Cloud deployment guide (Azure Container Apps) |
+| [agent-protocol.md](agent-protocol.md) | Agent API protocol specification              |
+| [FAQ.md](../faq/FAQ.md)                | Frequently asked questions                    |
 
-// ...existing content from README.md...
+For guides and setup docs, see:
+
+- [docs/guides/](../guides/) — Getting Started, Quick Start
+- [docs/testing/](../testing/) — Testing Guide
+- [docs/handoff/](../handoff/) — Completion Summaries
+- [docs/migrations/](../migrations/) — Phase plans

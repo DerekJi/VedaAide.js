@@ -1,3 +1,3 @@
 # FAQ
 
-// ...existing content from FAQ.md...
+> This page has moved. See [docs/faq/FAQ.md](../faq/FAQ.md).

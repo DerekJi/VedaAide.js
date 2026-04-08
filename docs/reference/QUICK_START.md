@@ -1,3 +1,3 @@
 # Quick Start
 
-// ...existing content from QUICK_START.md...
+> This page has moved. See [docs/guides/QUICK_START.md](../guides/QUICK_START.md).

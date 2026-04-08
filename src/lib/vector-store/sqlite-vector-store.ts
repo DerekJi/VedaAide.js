@@ -55,19 +55,27 @@ export class SqliteVectorStore implements IVectorStore {
 
       const chunks = await this.prisma.vectorChunk.findMany({ where });
 
-      const scored = chunks.map((chunk) => {
-        const embedding = JSON.parse(chunk.embedding) as number[];
-        const score = cosineSimilarity(queryEmbedding, embedding);
-        return {
-          id: chunk.id,
-          content: chunk.content,
-          score,
-          metadata: JSON.parse(chunk.metadata) as Record<string, unknown>,
-          fileId: chunk.fileId ?? undefined,
-        };
-      });
+      const scored = chunks.map(
+        (chunk: {
+          embedding: string;
+          content: string;
+          id: string;
+          metadata: string;
+          fileId: string | null;
+        }) => {
+          const embedding = JSON.parse(chunk.embedding) as number[];
+          const score = cosineSimilarity(queryEmbedding, embedding);
+          return {
+            id: chunk.id,
+            content: chunk.content,
+            score,
+            metadata: JSON.parse(chunk.metadata) as Record<string, unknown>,
+            fileId: chunk.fileId ?? undefined,
+          };
+        },
+      );
 
-      scored.sort((a, b) => b.score - a.score);
+      scored.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
       const results = scored.slice(0, topK);
 
       logger.debug({ topK, returned: results.length }, "similaritySearch");

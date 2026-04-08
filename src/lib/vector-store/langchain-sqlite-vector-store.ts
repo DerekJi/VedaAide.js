@@ -51,7 +51,7 @@ export class LangChainSqliteVectorStore extends VectorStore {
       );
 
       logger.debug({ count: created.length }, "LangChainSqliteVectorStore.addVectors");
-      return created.map((c) => c.id);
+      return (created as Array<{ id: string }>).map((c) => c.id);
     } catch (cause) {
       throw new VectorStoreError(
         `Failed to store ${docs.length} document(s): ${String(cause)}`,
@@ -78,28 +78,73 @@ export class LangChainSqliteVectorStore extends VectorStore {
       const where = this.buildWhereClause(filter);
       const chunks = await this.prisma.vectorChunk.findMany({ where });
 
-      const scored = chunks.map((chunk) => {
-        const embedding = JSON.parse(chunk.embedding) as number[];
-        const score = cosineSimilarity(queryVector, embedding);
-        return { chunk, score };
-      });
+      const scored = chunks.map(
+        (chunk: {
+          embedding: string;
+          content: string;
+          id: string;
+          metadata: string;
+          fileId: string | null;
+        }) => {
+          const embedding = JSON.parse(chunk.embedding) as number[];
+          const score = cosineSimilarity(queryVector, embedding);
+          return { chunk, score };
+        },
+      );
 
-      scored.sort((a, b) => b.score - a.score);
+      scored.sort(
+        (
+          a: {
+            chunk: {
+              id: string;
+              content: string;
+              embedding: string;
+              metadata: string;
+              fileId: string | null;
+            };
+            score: number;
+          },
+          b: {
+            chunk: {
+              id: string;
+              content: string;
+              embedding: string;
+              metadata: string;
+              fileId: string | null;
+            };
+            score: number;
+          },
+        ) => b.score - a.score,
+      );
       const topK = scored.slice(0, k);
 
       logger.debug({ k, returned: topK.length }, "LangChainSqliteVectorStore.similaritySearch");
 
-      return topK.map(({ chunk, score }) => [
-        new Document({
-          pageContent: chunk.content,
-          metadata: {
-            ...(JSON.parse(chunk.metadata) as Record<string, unknown>),
-            id: chunk.id,
-            fileId: chunk.fileId,
-          },
-        }),
-        score,
-      ]);
+      return topK.map(
+        ({
+          chunk,
+          score,
+        }: {
+          chunk: {
+            id: string;
+            content: string;
+            embedding: string;
+            metadata: string;
+            fileId: string | null;
+          };
+          score: number;
+        }) => [
+          new Document({
+            pageContent: chunk.content,
+            metadata: {
+              ...(JSON.parse(chunk.metadata) as Record<string, unknown>),
+              id: chunk.id,
+              fileId: chunk.fileId,
+            },
+          }),
+          score,
+        ],
+      );
     } catch (cause) {
       if (cause instanceof VectorStoreError) throw cause;
       throw new VectorStoreError(

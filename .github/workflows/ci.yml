@@ -23,9 +23,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Generate Prisma client
-        run: npm run db:generate
+        # NOTE: prisma generate runs automatically via the postinstall hook
 
       - name: TypeScript type check
         run: npm run type-check
