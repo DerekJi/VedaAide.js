@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { RagError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { ChunkingService } from "@/lib/services/chunking.service";
+import { DeduplicationService } from "@/lib/services/deduplication.service";
+import { HallucinationGuardService } from "@/lib/services/hallucination-guard.service";
 import { SqliteVectorStore } from "@/lib/vector-store/sqlite-vector-store";
 import type { IEmbeddingService } from "@/lib/services/embedding.service";
 import type { IChatService } from "@/lib/services/chat.service";
@@ -22,14 +24,20 @@ import type {
 export class RagService {
   private readonly chunker: ChunkingService;
   private readonly vectorStore: IVectorStore;
+  private readonly dedupService: DeduplicationService;
+  private readonly hallucinationGuard?: HallucinationGuardService;
 
   constructor(
     private readonly embeddingService: IEmbeddingService,
     private readonly chatService: IChatService,
     vectorStore?: IVectorStore,
+    dedupService?: DeduplicationService,
+    hallucinationGuard?: HallucinationGuardService,
   ) {
     this.chunker = new ChunkingService();
     this.vectorStore = vectorStore ?? new SqliteVectorStore();
+    this.dedupService = dedupService ?? new DeduplicationService();
+    this.hallucinationGuard = hallucinationGuard;
   }
 
   // ── Ingest pipeline ─────────────────────────────────────────────────────────
@@ -99,13 +107,40 @@ export class RagService {
       const texts = chunks.map((c) => c.content);
       const embeddings = await this.embeddingService.embedDocuments(texts);
 
-      // Build VectorDocument list
-      const docs: VectorDocument[] = chunks.map((chunk, i) => ({
-        content: chunk.content,
-        embedding: embeddings[i],
-        metadata: { ...request.metadata, chunkIndex: chunk.index, source: request.source },
-        fileId: syncedFile.id,
-      }));
+      // Build VectorDocument list, performing dual-layer dedup per chunk
+      const docs: VectorDocument[] = [];
+      let skippedChunks = 0;
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const embedding = embeddings[i];
+        const contentHash = this.dedupService.computeHash(chunk.content);
+
+        const dedupResult = await this.dedupService.check(chunk.content, embedding);
+        if (dedupResult.isDuplicate) {
+          skippedChunks++;
+          logger.debug(
+            { reason: dedupResult.reason, chunkIndex: chunk.index },
+            "ingest: chunk dedup skip",
+          );
+          continue;
+        }
+
+        docs.push({
+          content: chunk.content,
+          contentHash,
+          embedding,
+          metadata: { ...request.metadata, chunkIndex: chunk.index, source: request.source },
+          fileId: syncedFile.id,
+        });
+      }
+
+      if (skippedChunks > 0) {
+        logger.info(
+          { skippedChunks, totalChunks: chunks.length },
+          "ingest: chunks skipped by dedup",
+        );
+      }
 
       // Store in vector store
       await this.vectorStore.addDocuments(docs);
@@ -160,12 +195,27 @@ export class RagService {
         systemPrompt: RAG_SYSTEM_PROMPT,
       });
 
-      logger.info({ traceId, topK, sourcesFound: sources.length }, "query: completed");
+      // 5. Hallucination detection (dual-layer, optional)
+      let isHallucination = false;
+      if (this.hallucinationGuard) {
+        const contextTexts = sources.map((s) => s.content);
+        const guardResult = await this.hallucinationGuard.check(answer, contextTexts);
+        isHallucination = guardResult.isHallucination;
+        logger.debug(
+          { isHallucination, confidence: guardResult.confidence, traceId },
+          "query: hallucination check",
+        );
+      }
+
+      logger.info(
+        { traceId, topK, sourcesFound: sources.length, isHallucination },
+        "query: completed",
+      );
 
       return {
         answer,
         sources,
-        isHallucination: false, // Phase 2 implementation
+        isHallucination,
         traceId,
       };
     } catch (cause) {

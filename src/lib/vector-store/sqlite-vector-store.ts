@@ -26,6 +26,7 @@ export class SqliteVectorStore implements IVectorStore {
             data: {
               id: doc.id,
               content: doc.content,
+              contentHash: doc.contentHash ?? null,
               embedding: JSON.stringify(doc.embedding),
               metadata: doc.metadata ? JSON.stringify(doc.metadata) : "{}",
               fileId: doc.fileId ?? null,

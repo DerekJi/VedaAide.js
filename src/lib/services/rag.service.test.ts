@@ -15,6 +15,10 @@ vi.mock("@/lib/db", () => ({
       upsert: vi.fn(),
       update: vi.fn(),
     },
+    vectorChunk: {
+      findFirst: vi.fn().mockResolvedValue(null), // no hash duplicate by default
+      findMany: vi.fn().mockResolvedValue([]), // no similarity duplicate by default
+    },
   },
 }));
 

@@ -15,6 +15,7 @@ datasource db {
 model VectorChunk {
   id          String   @id @default(cuid())
   content     String
+  contentHash String?  // SHA-256 of chunk content for chunk-level deduplication
   embedding   String   // JSON-encoded float array
   metadata    String   @default("{}") // JSON-encoded metadata object
   fileId      String?
@@ -23,17 +24,22 @@ model VectorChunk {
   updatedAt   DateTime @updatedAt
 
   @@index([fileId])
+  @@index([contentHash])
 }
 
-/// Stores prompt templates for different use cases
+/// Stores prompt templates for different use cases with version support
 model PromptTemplate {
   id          String   @id @default(cuid())
-  name        String   @unique
-  template    String
+  name        String
+  content     String   // Prompt content (was 'template' in v1, renamed for clarity)
+  version     Int      @default(1)
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@unique([name, version])
+  @@index([name, isActive])
 }
 
 /// Tracks files that have been synced/ingested
