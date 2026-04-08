@@ -19,16 +19,14 @@ vi.mock("@/lib/db", () => ({
     syncedFile: {
       findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn().mockResolvedValue(null),
-      upsert: vi
-        .fn()
-        .mockResolvedValue({
-          id: "file-1",
-          name: "doc.md",
-          status: "completed",
-          chunkCount: 3,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
+      upsert: vi.fn().mockResolvedValue({
+        id: "file-1",
+        name: "doc.md",
+        status: "completed",
+        chunkCount: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
       update: vi.fn().mockResolvedValue({}),
     },
     vectorChunk: {
@@ -42,16 +40,14 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/vector-store/sqlite-vector-store", () => ({
   SqliteVectorStore: vi.fn().mockImplementation(() => ({
     addDocuments: vi.fn().mockResolvedValue(undefined),
-    similaritySearch: vi
-      .fn()
-      .mockResolvedValue([
-        {
-          id: "c1",
-          content: "RAG stands for Retrieval-Augmented Generation.",
-          score: 0.9,
-          metadata: {},
-        },
-      ]),
+    similaritySearch: vi.fn().mockResolvedValue([
+      {
+        id: "c1",
+        content: "RAG stands for Retrieval-Augmented Generation.",
+        score: 0.9,
+        metadata: {},
+      },
+    ]),
     deleteByFileId: vi.fn().mockResolvedValue(undefined),
   })),
 }));

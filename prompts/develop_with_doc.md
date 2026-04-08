@@ -5,3 +5,5 @@ Please proceed based on the provided documentation, adhering to DRY/SRP/SOLID pr
 3. Architectural Guardrails: Strictly follow Next.js App Router conventions, ensuring clear separation between business logic and UI components.
 4. Self-Healing Docs: If any issues or inconsistencies are found in the documentation, fix them immediately in both Chinese and English.
 5. Final Review: Upon completion, re-review all changes against the doc to fix potential bugs and ensure the documentation perfectly reflects the implementation.
+6. package-lock.json must be synced
+7. Summarize the changes in the current branch and prepare Github Pull Request with a brief Title & proper Description.
