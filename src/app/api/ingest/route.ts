@@ -3,12 +3,30 @@ import { z } from "zod";
 import { RagService } from "@/lib/services/rag.service";
 import { OllamaEmbeddingService } from "@/lib/services/ollama-embedding.service";
 import { OllamaChatService } from "@/lib/services/ollama-chat.service";
+import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { VedaError } from "@/lib/errors";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/ingest
+// GET /api/ingest  – List all synced files (most recent first)
+// POST /api/ingest – Ingest a document
 // ─────────────────────────────────────────────────────────────────────────────
+
+export async function GET() {
+  const files = await prisma.syncedFile.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      source: true,
+      status: true,
+      chunkCount: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  return NextResponse.json(files);
+}
 
 const ingestSchema = z.object({
   content: z.string().min(1, "content is required"),

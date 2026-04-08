@@ -55,18 +55,26 @@ function makeRequest(body: unknown): NextRequest {
   });
 }
 
-async function readTextStream(response: Response): Promise<string[]> {
+/** Reads all SSE data, returns parsed event objects. */
+async function readSseEvents(response: Response): Promise<Record<string, unknown>[]> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
-  const chunks: string[] = [];
+  const events: Record<string, unknown>[] = [];
+  let buffer = "";
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    chunks.push(decoder.decode(value));
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+    for (const chunk of chunks) {
+      const line = chunk.startsWith("data: ") ? chunk.slice(6) : null;
+      if (line) events.push(JSON.parse(line) as Record<string, unknown>);
+    }
   }
 
-  return chunks;
+  return events;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -81,24 +89,29 @@ describe("POST /api/query/stream", () => {
     ]);
   });
 
-  it("returns 200 with a streaming text response", async () => {
+  it("returns 200 with a streaming SSE response", async () => {
     const req = makeRequest({ question: "What is the capital of France?" });
     const response = await POST(req);
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toContain("text/plain");
+    expect(response.headers.get("content-type")).toContain("text/event-stream");
     expect(response.body).toBeTruthy();
   });
 
-  it("streams all tokens from the LLM", async () => {
+  it("streams all tokens then emits a done event", async () => {
     const req = makeRequest({ question: "What is the capital of France?" });
     const response = await POST(req);
 
-    const chunks = await readTextStream(response);
-    const fullText = chunks.join("");
+    const events = await readSseEvents(response);
+    const tokenEvents = events.filter((e) => e.type === "token");
+    const doneEvent = events.find((e) => e.type === "done");
 
+    const fullText = tokenEvents.map((e) => e.token as string).join("");
     expect(fullText).toContain("Paris");
     expect(fullText).toContain("capital");
+    expect(doneEvent).toBeDefined();
+    expect(Array.isArray(doneEvent!.sources)).toBe(true);
+    expect(doneEvent!.isHallucination).toBe(false);
   });
 
   it("calls embedding and vector store with the question", async () => {
@@ -120,8 +133,8 @@ describe("POST /api/query/stream", () => {
     const req = makeRequest({ question: "What is the capital of France?" });
     await POST(req);
 
-    // Drain the stream
-    await readTextStream(await POST(makeRequest({ question: "test" })));
+    // Drain the stream via SSE helper
+    await readSseEvents(await POST(makeRequest({ question: "test" })));
 
     expect(chatStreamMock).toHaveBeenCalledWith(
       expect.arrayContaining([

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SideNav from "@/app/_components/side-nav";
+import { QueryProvider } from "@/lib/providers/query-provider";
+import { ToastProvider } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
   title: "VedaAide",
@@ -14,12 +16,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="flex h-screen bg-gray-50">
-        {/* Sidebar */}
-        <SideNav />
+      <body className="flex h-screen bg-gray-50 overflow-hidden">
+        <QueryProvider>
+          <ToastProvider>
+            {/* Sidebar */}
+            <SideNav />
 
-        {/* Main content */}
-        <main className="flex flex-col flex-1 overflow-hidden">{children}</main>
+            {/* Main content — takes remaining space */}
+            <main className="flex flex-col flex-1 overflow-hidden md:pl-0 pl-0">{children}</main>
+          </ToastProvider>
+        </QueryProvider>
       </body>
     </html>
   );
