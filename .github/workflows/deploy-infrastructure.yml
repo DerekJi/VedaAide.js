@@ -4,18 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment (dev/staging/prod)'
+        description: "Deployment environment (dev/staging/prod)"
         required: true
-        default: 'prod'
+        default: "prod"
         type: choice
         options:
           - dev
           - staging
           - prod
       container_image:
-        description: 'Container image URI (e.g., ghcr.io/org/image:tag)'
+        description: "Container image URI (e.g., ghcr.io/org/image:tag)"
         required: true
-        default: 'ghcr.io/DerekJi/vedaaide-js:latest'
+        default: "ghcr.io/DerekJi/vedaaide-js:latest"
 
 jobs:
   deploy-infrastructure:
@@ -59,7 +59,7 @@ jobs:
           CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
           COSMOS_ENDPOINT="https://vedaaide.documents.azure.com:443/"
           OPENAI_ENDPOINT="https://dev-dj-open-ai.openai.azure.com/"
-          
+
           az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
             --template-file infra/main.bicep \
@@ -95,18 +95,18 @@ jobs:
         run: |
           echo "Waiting 30 seconds for container apps to be ready..."
           sleep 30
-          
+
           RESOURCE_GROUP="vedaaide-prod-rg"
           FQDNS=$(az containerapp list \
             --resource-group "$RESOURCE_GROUP" \
             --query "[].properties.configuration.ingress.fqdn" \
             -o tsv)
-          
+
           if [ -z "$FQDNS" ]; then
             echo "No container apps found"
             exit 1
           fi
-          
+
           for FQDN in $FQDNS; do
             echo "Testing health endpoint: https://$FQDN/api/health"
             curl -f -s "https://$FQDN/api/health" || echo "Health check not yet available"
