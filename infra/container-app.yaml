@@ -1,0 +1,111 @@
+# Azure Container Apps configuration for VedaAide
+# Apply with: az containerapp update --name vedaaide-prod --resource-group vedaaide-rg --yaml infra/container-app.yaml
+#
+# T13: Azure Container Apps configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+properties:
+  configuration:
+    ingress:
+      external: true
+      targetPort: 3000
+      allowInsecure: false
+      transport: auto
+      # Sticky sessions for SSE streaming stability
+      stickySessions:
+        affinity: sticky
+
+    # ── Secrets (reference from Azure Key Vault or set inline) ───────────────
+    secrets:
+      - name: database-url
+        value: "file:./prod.db"
+      - name: azure-openai-api-key
+        keyVaultUrl: "https://vedaaide-kv.vault.azure.net/secrets/azure-openai-api-key"
+        identity: system
+      - name: appinsights-connection-string
+        keyVaultUrl: "https://vedaaide-kv.vault.azure.net/secrets/appinsights-connection-string"
+        identity: system
+
+    # ── Registry credentials ──────────────────────────────────────────────────
+    registries:
+      - server: ghcr.io
+        username: "github-actions"
+        passwordSecretRef: "ghcr-token"
+
+  template:
+    containers:
+      - name: vedaaide
+        image: "ghcr.io/vedaaide/vedaaide-js:latest"
+
+        # ── Resources ─────────────────────────────────────────────────────────
+        resources:
+          cpu: 1.0
+          memory: 2Gi
+
+        # ── Environment variables ──────────────────────────────────────────────
+        env:
+          - name: NODE_ENV
+            value: production
+          - name: PORT
+            value: "3000"
+          - name: HOSTNAME
+            value: "0.0.0.0"
+          - name: DATABASE_URL
+            secretRef: database-url
+          - name: AZURE_OPENAI_ENDPOINT
+            value: "https://vedaaide.openai.azure.com/"
+          - name: AZURE_OPENAI_API_KEY
+            secretRef: azure-openai-api-key
+          - name: AZURE_OPENAI_DEPLOYMENT_NAME
+            value: "gpt-4o"
+          - name: AZURE_OPENAI_API_VERSION
+            value: "2024-08-01-preview"
+          - name: DEPLOYMENT_MODE
+            value: "true"
+          - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+            secretRef: appinsights-connection-string
+          - name: LOG_LEVEL
+            value: warn
+          - name: DATA_SYNC_PATH
+            value: /app/data
+
+        # ── Health probes ──────────────────────────────────────────────────────
+        probes:
+          - type: liveness
+            httpGet:
+              path: /api/health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+
+          - type: readiness
+            httpGet:
+              path: /api/health
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+
+        # ── Volume mounts ──────────────────────────────────────────────────────
+        volumeMounts:
+          - volumeName: data-volume
+            mountPath: /app/data
+
+    # ── Volumes (persistent SQLite DB) ────────────────────────────────────────
+    volumes:
+      - name: data-volume
+        storageName: vedaaide-storage
+        storageType: AzureFile
+
+    # ── Auto-scaling ──────────────────────────────────────────────────────────
+    scale:
+      minReplicas: 1
+      maxReplicas: 10
+      rules:
+        - name: http-concurrency-scale
+          http:
+            metadata:
+              concurrentRequests: "50"

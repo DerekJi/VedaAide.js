@@ -217,3 +217,43 @@ describe("POST /api/query", () => {
     expect(res.status).toBe(200);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/datasources/sync
+// ─────────────────────────────────────────────────────────────────────────────
+describe("POST /api/datasources/sync", () => {
+  it("returns 200 with sync result (no connectors registered when DATA_SYNC_PATH unset)", async () => {
+    delete process.env.DATA_SYNC_PATH;
+    const { POST } = await import("@/app/api/datasources/sync/route");
+    const res = await POST();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.connectors)).toBe(true);
+    expect(typeof body.durationMs).toBe("number");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/ingest (ingest a document)
+// ─────────────────────────────────────────────────────────────────────────────
+describe("POST /api/ingest", () => {
+  it("returns 201 with ingest result for valid new document", async () => {
+    const { POST } = await import("@/app/api/ingest/route");
+    const req = makeReq("/api/ingest", "POST", {
+      content: "This is a test document with some content.",
+      source: "test-doc.md",
+    });
+    const res = await POST(req);
+    expect([200, 201]).toContain(res.status);
+    const body = await res.json();
+    expect(typeof body.fileId).toBe("string");
+    expect(typeof body.chunkCount).toBe("number");
+  });
+
+  it("returns 400 for missing content", async () => {
+    const { POST } = await import("@/app/api/ingest/route");
+    const req = makeReq("/api/ingest", "POST", { source: "test.md" });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+});

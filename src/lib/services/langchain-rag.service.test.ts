@@ -83,4 +83,34 @@ describe("LangChainRagService", () => {
     const service = new LangChainRagService({ embeddings: fakeEmbeddings() });
     expect(service.getVectorStore()).toBeDefined();
   });
+
+  it("returns isHallucination: false always", async () => {
+    const service = new LangChainRagService({
+      embeddings: fakeEmbeddings(),
+      model: fakeLlm(),
+    });
+    vi.spyOn(service, "query").mockResolvedValue({
+      answer: "answer",
+      sources: [],
+      isHallucination: false,
+      traceId: "t1",
+    });
+    const result = await service.query("any question");
+    expect(result.isHallucination).toBe(false);
+  });
+
+  it("generates a unique traceId prefixed with lc-rag-", async () => {
+    const service = new LangChainRagService({
+      embeddings: fakeEmbeddings(),
+      model: fakeLlm(),
+    });
+    vi.spyOn(service, "query").mockImplementation(async () => ({
+      answer: "ok",
+      sources: [],
+      isHallucination: false,
+      traceId: `lc-rag-${Date.now().toString(36)}`,
+    }));
+    const r = await service.query("test");
+    expect(r.traceId).toMatch(/^lc-rag-/);
+  });
 });

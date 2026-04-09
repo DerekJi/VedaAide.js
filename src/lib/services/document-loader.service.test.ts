@@ -31,15 +31,15 @@ describe("DocumentLoaderService", () => {
     const docs = await service.load(TXT_FILE);
     expect(docs).toHaveLength(1);
     expect(docs[0].pageContent).toBe("Hello from text file");
-    expect(docs[0].metadata.extension).toBe(".txt");
-    expect(docs[0].metadata.fileName).toBe("sample.txt");
+    expect(docs[0].metadata?.extension).toBe(".txt");
+    expect(docs[0].metadata?.fileName).toBe("sample.txt");
   });
 
   it("loads a .md file and returns Document[]", async () => {
     const docs = await service.load(MD_FILE);
     expect(docs).toHaveLength(1);
     expect(docs[0].pageContent).toContain("Heading");
-    expect(docs[0].metadata.extension).toBe(".md");
+    expect(docs[0].metadata?.extension).toBe(".md");
   });
 
   it("throws VedaError for unsupported extension", async () => {

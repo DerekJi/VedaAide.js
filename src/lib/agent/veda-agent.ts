@@ -65,8 +65,9 @@ export class VedaAgent {
         messages: [new HumanMessage(userMessage)],
       },
       {
-        recursionLimit: this.maxIterations,
-      },
+        configurable: { maxIterations: this.maxIterations },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
     );
 
     const messages = result.messages as { role?: string; content: string; name?: string }[];

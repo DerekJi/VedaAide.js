@@ -65,7 +65,7 @@ export class HallucinationGuardService {
       this.embeddings.embedDocuments(contextTexts),
     ]);
 
-    const maxSimilarity = contextEmbeddings.reduce((max, ctxEmb) => {
+    const maxSimilarity = contextEmbeddings.reduce((max: number, ctxEmb: number[]) => {
       const sim = cosineSimilarity(answerEmbedding, ctxEmb);
       return sim > max ? sim : max;
     }, -Infinity);

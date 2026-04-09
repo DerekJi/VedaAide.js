@@ -41,7 +41,7 @@ describe("LangChainSplitterService", () => {
     });
 
     const chunks = await service.split([doc]);
-    expect(chunks[0].metadata.source).toBe("myfile.txt");
+    expect(chunks[0].metadata?.source).toBe("myfile.txt");
   });
 
   it("handles a short document without splitting", async () => {

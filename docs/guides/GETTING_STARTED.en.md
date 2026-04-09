@@ -193,6 +193,28 @@ docker compose exec ollama ollama pull llama3.2
 
 ---
 
+## 9. Explore the API
+
+### OpenAPI spec (auto-generated)
+
+```bash
+curl http://localhost:3000/api/openapi
+# Returns the full OpenAPI 3.0 JSON spec
+```
+
+### Postman collection
+
+Import `docs/postman/vedaaide.postman_collection.json` into Postman for a complete, pre-configured collection covering all endpoints.
+
+### Load testing
+
+```bash
+# Install k6: https://k6.io/docs/get-started/installation/
+k6 run tests/load/rag-query.js
+```
+
+---
+
 ## Troubleshooting
 
 | Symptom                           | Fix                                                        |

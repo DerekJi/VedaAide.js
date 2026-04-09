@@ -98,6 +98,17 @@ src/
 
 After running `npm run test:coverage`, open `coverage/index.html` in a browser to view the report.
 
+**Phase 4 coverage thresholds (enforced in CI):**
+
+| Metric     | Threshold |
+| ---------- | --------- |
+| Statements | ≥ 80%     |
+| Functions  | ≥ 80%     |
+| Branches   | ≥ 70%     |
+| Lines      | ≥ 80%     |
+
+Current status: **91%+ statements** (as of Phase 4).
+
 CI uploads coverage to [Codecov](https://codecov.io/) automatically on every push.
 
 ---
@@ -120,8 +131,41 @@ Or use the Playwright interactive UI:
 npm run test:e2e:ui
 ```
 
+**E2E test suites (25+ cases):**
+
+| File                           | Coverage                                          |
+| ------------------------------ | ------------------------------------------------- |
+| `tests/e2e/chat.spec.ts`       | Chat interface, SSE streaming, Stop button        |
+| `tests/e2e/ingest.spec.ts`     | File upload, ingest history table, sync           |
+| `tests/e2e/navigation.spec.ts` | Sidebar nav, routing, mobile viewport, API health |
+
 > **Note:** E2E tests also require Ollama running locally with models pulled.  
 > See [GETTING_STARTED.en.md](../guides/GETTING_STARTED.en.md) for setup.
+
+---
+
+## Load Tests (k6)
+
+Performance benchmarks use [k6](https://k6.io/):
+
+```bash
+# Install k6 (macOS)
+brew install k6
+
+# Install k6 (Linux)
+sudo apt-get install k6
+
+# Run load test against local server
+k6 run tests/load/rag-query.js
+
+# Run against staging
+k6 run tests/load/rag-query.js --env BASE_URL=https://vedaaide-staging.azurecontainerapps.io
+```
+
+**Thresholds:**
+
+- P95 response time < 2500ms
+- Error rate < 5%
 
 ---
 

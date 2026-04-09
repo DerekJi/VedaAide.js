@@ -17,10 +17,17 @@ export class LangChainSqliteVectorStore extends VectorStore {
   declare FilterType: Record<string, unknown>;
 
   private readonly prisma: PrismaClient;
+  private embeddingsInstance: EmbeddingsInterface;
 
   constructor(embeddings: EmbeddingsInterface, prisma?: PrismaClient) {
     super(embeddings, {});
+    this.embeddingsInstance = embeddings;
     this.prisma = prisma ?? new PrismaClient();
+  }
+
+  /** Expose embeddings for LangChain components that need direct access */
+  get embeddings(): EmbeddingsInterface {
+    return this.embeddingsInstance;
   }
 
   _vectorstoreType(): string {
@@ -66,6 +73,13 @@ export class LangChainSqliteVectorStore extends VectorStore {
     const texts = docs.map((d) => d.pageContent);
     const vectors = await this.embeddings.embedDocuments(texts);
     return this.addVectors(vectors, docs);
+  }
+
+  /** Convenience method that embeds the query text then searches */
+  async similaritySearch(query: string, k: number = 5): Promise<Document[]> {
+    const vector = await this.embeddings.embedQuery(query);
+    const results = await this.similaritySearchVectorWithScore(vector, k);
+    return results.map(([doc]) => doc);
   }
 
   /** Core similarity search returning (Document, score) pairs */
@@ -159,6 +173,15 @@ export class LangChainSqliteVectorStore extends VectorStore {
   async deleteByFileId(fileId: string): Promise<void> {
     const { count } = await this.prisma.vectorChunk.deleteMany({ where: { fileId } });
     logger.debug({ fileId, count }, "LangChainSqliteVectorStore.deleteByFileId");
+  }
+
+  /** Convert to LangChain retriever interface for use in chains */
+  asRetriever(k: number = 5): { invoke: (query: string) => Promise<Document[]> } {
+    return {
+      invoke: async (query: string) => {
+        return this.similaritySearch(query, k);
+      },
+    };
   }
 
   /** Build Prisma where clause from a flat metadata filter */

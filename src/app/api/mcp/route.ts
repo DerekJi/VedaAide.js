@@ -27,7 +27,7 @@ function buildMcpServer(): McpServer {
       query: z.string().min(1).describe("Search query"),
       topK: z.number().int().min(1).max(20).default(5).describe("Number of results"),
     },
-    async ({ query, topK }) => {
+    async ({ query, topK }: { query: string; topK: number }) => {
       try {
         const embeddings = new OllamaEmbeddingService();
         const vectorStore = new LangChainSqliteVectorStore(embeddings);
@@ -40,7 +40,7 @@ function buildMcpServer(): McpServer {
             {
               type: "text",
               text: JSON.stringify(
-                results.map((doc) => ({
+                results.map((doc: { pageContent: string; metadata?: Record<string, unknown> }) => ({
                   content: doc.pageContent,
                   metadata: doc.metadata,
                 })),

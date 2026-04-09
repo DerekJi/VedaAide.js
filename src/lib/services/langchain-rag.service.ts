@@ -1,10 +1,9 @@
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { StringOutputParser } from "@langchain/core/output_parsers";
-import { RunnableSequence, RunnablePassthrough } from "@langchain/core/runnables";
-import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import type { Document } from "@langchain/core/documents";
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
+import { OllamaEmbeddings } from "@langchain/ollama";
+import { ChatOllama } from "@langchain/ollama";
 import { LangChainSqliteVectorStore } from "@/lib/vector-store/langchain-sqlite-vector-store";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -70,26 +69,20 @@ export class LangChainRagService {
    */
   async query(question: string): Promise<RagQueryResult> {
     const traceId = `lc-rag-${Date.now().toString(36)}`;
-    const retriever = this.vectorStore.asRetriever(this.topK);
-
-    // Build LCEL chain
-    const chain = RunnableSequence.from([
-      {
-        context: retriever.pipe((docs: Document[]) => formatDocs(docs)),
-        question: new RunnablePassthrough(),
-        docs: retriever,
-      },
-      {
-        answer: this.promptTemplate.pipe(this.llm).pipe(new StringOutputParser()),
-        docs: (input: { docs: Document[] }) => input.docs,
-      },
-    ]);
+    const docs = await this.vectorStore.similaritySearch(question, this.topK);
+    const context = formatDocs(docs);
 
     logger.debug({ question, traceId }, "LangChainRagService.query");
 
-    const result = await chain.invoke(question);
+    const promptValue = await this.promptTemplate.formatMessages({
+      context,
+      question,
+    });
 
-    const sources: VectorSearchResult[] = result.docs.map((doc: Document, i: number) => ({
+    const result = await this.llm.invoke(promptValue);
+    const answer = result.content;
+
+    const sources: VectorSearchResult[] = docs.map((doc: Document, i: number) => ({
       id: (doc.metadata?.id as string | undefined) ?? `src-${i}`,
       content: doc.pageContent,
       score: (doc.metadata?.score as number | undefined) ?? 0,
@@ -98,7 +91,7 @@ export class LangChainRagService {
     }));
 
     return {
-      answer: result.answer,
+      answer: typeof answer === "string" ? answer : String(answer),
       sources,
       isHallucination: false, // updated in T9-T11
       traceId,

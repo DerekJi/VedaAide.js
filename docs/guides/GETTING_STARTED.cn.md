@@ -193,6 +193,28 @@ docker compose exec ollama ollama pull llama3.2
 
 ---
 
+## 9. 探索 API
+
+### OpenAPI 规范（自动生成）
+
+```bash
+curl http://localhost:3000/api/openapi
+# 返回完整的 OpenAPI 3.0 JSON 规范
+```
+
+### Postman 集合
+
+将 `docs/postman/vedaaide.postman_collection.json` 导入 Postman，获取覆盖所有端点的完整预配置集合。
+
+### 负载测试
+
+```bash
+# 安装 k6: https://k6.io/docs/get-started/installation/
+k6 run tests/load/rag-query.js
+```
+
+---
+
 ## 故障排除
 
 | 问题                              | 解决方法                                                    |
