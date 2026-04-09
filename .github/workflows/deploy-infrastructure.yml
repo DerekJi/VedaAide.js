@@ -23,6 +23,10 @@ on:
         required: true
         default: "ghcr.io/DerekJi/vedaaide-js:latest"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy-infrastructure:
     name: Deploy Bicep Infrastructure
