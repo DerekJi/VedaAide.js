@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'infra/**'
+      - "infra/**"
   workflow_dispatch:
 
 concurrency:
@@ -13,11 +13,13 @@ concurrency:
 
 jobs:
   hello:
+    name: Basic Hello World
     runs-on: ubuntu-latest
+
     steps:
       - name: Hello
-        run: echo "Hello from GitHub Actions!"
+        run: echo "Hello from GitHub Actions"
       - name: Check OS
-        run: echo "OS: $(uname -a)"
+        run: uname -a
       - name: Status
         run: echo "Workflows in this repo should now work"
