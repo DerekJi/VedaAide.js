@@ -33,6 +33,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # TEMPORARY: Set to 'true' to enable actual deployment. Set to 'false' to disable after verification.
+  ENABLE_ACTUAL_DEPLOYMENT: "true"
+
 jobs:
   deploy-infrastructure:
     name: Deploy Bicep Infrastructure
@@ -63,8 +67,14 @@ jobs:
           fi
 
       - name: Run deployment
-        if: github.event_name != 'pull_request'
-        run: echo "Deployment skipped in pull request context"
+        if: github.event_name != 'pull_request' && env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
+        run: echo "✅ Proceeding with actual deployment (ENABLE_ACTUAL_DEPLOYMENT=true)"
+
+      - name: Block deployment if disabled
+        if: github.event_name != 'pull_request' && env.ENABLE_ACTUAL_DEPLOYMENT != 'true'
+        run: |
+          echo "⚠️ Deployment is currently disabled (ENABLE_ACTUAL_DEPLOYMENT=${{ env.ENABLE_ACTUAL_DEPLOYMENT }})"
+          exit 1
 
       - name: Azure login
         if: github.event_name != 'pull_request'
