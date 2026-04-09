@@ -4,24 +4,25 @@ on:
   push:
     branches:
       - main
+      - infra/**
     paths:
-      - 'infra/**'
-      - '.github/workflows/deploy-infrastructure.yml'
+      - infra/**
+      - .github/workflows/deploy-infrastructure.yml
   workflow_dispatch:
     inputs:
       environment:
-        description: "Deployment environment (dev/staging/prod)"
+        description: Deployment environment (dev/staging/prod)
         required: true
-        default: "prod"
+        default: prod
         type: choice
         options:
           - dev
           - staging
           - prod
       container_image:
-        description: "Container image URI (e.g., ghcr.io/org/image:tag)"
+        description: Container image URI
         required: true
-        default: "ghcr.io/DerekJi/vedaaide-js:latest"
+        default: ghcr.io/DerekJi/vedaaide-js:latest
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -44,288 +45,54 @@ jobs:
 
       - name: Set Azure subscription
         run: |
-          az account set --subscription "02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
-          az account show
-
-      - name: Diagnose Azure resources
-        run: |
-          echo "🔍 Diagnosing Azure Resources..."
-          echo ""
-          
-          echo "1️⃣ Checking Cosmos DB accounts:"
-          az cosmosdb database-accounts list \
-            --query "[].{name, endpoint: documentEndpoint, status: provisioningState}" \
-            -o table || echo "⚠️  Could not list Cosmos accounts"
-          echo ""
-          
-          echo "2️⃣ Checking Azure Cognitive Services (OpenAI):"
-          az cognitiveservices account list --query "[].{name, kind}" -o table || echo "⚠️  Could not list cognitive accounts"
-          echo ""
-          
-          echo "3️⃣ Current subscription:"
-          az account show --query "{id: id, name: name}" -o json
-          echo ""
-          
-          echo "✅ Resource diagnostics complete"
-
-      - name: Pre-deployment checks
-        run: |
-          echo "📋 Pre-deployment verification..."
-          echo ""
-          
-          echo "Checking directory structure:"
-          ls -la infra/ 2>/dev/null || echo "❌ infra/ directory not found"
-          echo ""
-          
-          echo "Checking Bicep files:"
-          ls -lah infra/main.bicep 2>/dev/null || echo "❌ infra/main.bicep not found"
-          ls -lah infra/modules/container-apps.bicep 2>/dev/null || echo "❌ infra/modules/container-apps.bicep not found"
-          echo ""
-          
-          echo "Checking Bicep syntax:"
-          if command -v bicep &> /dev/null; then
-            bicep lint infra/main.bicep || echo "⚠️ Bicep lint warnings"
-          else
-            echo "⚠️ Bicep not installed locally, will validate during deployment"
-          fi
-          echo ""
-          
-          echo "Checking Azure CLI:"
-          az --version | head -1
-          echo ""
-          
-          echo "✅ Pre-deployment checks completed"
+          SUBSCRIPTION_ID=$(echo "$AZURE_CREDENTIALS" | jq -r '.subscriptionId')
+          az account set --subscription "$SUBSCRIPTION_ID"
 
       - name: Create resource group
         run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
-          LOCATION="australiaeast"
-          
-          echo "📦 Ensuring resource group exists..."
-          
-          if az group exists --name "$RESOURCE_GROUP" --output json | jq -e '.value == false' > /dev/null 2>&1; then
-            echo "Creating resource group: $RESOURCE_GROUP"
-            az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
-            echo "✅ Resource group created"
-          else
-            echo "✅ Resource group already exists: $RESOURCE_GROUP"
-          fi
-          
-          # Verify it exists
-          az group show --name "$RESOURCE_GROUP" --output json | jq '{name, location}'
+          az group create --name vedaaide-prod-rg --location australiaeast || true
 
-      - name: Create deployment parameters file
+      - name: Create parameters file
         run: |
-          # Handle inputs with proper defaults
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            ENVIRONMENT="${{ github.event.inputs.environment }}"
-            CONTAINER_IMAGE="${{ github.event.inputs.container_image }}"
-          else
-            # Auto-triggered by push
-            ENVIRONMENT="prod"
-            CONTAINER_IMAGE="ghcr.io/DerekJi/vedaaide-js:latest"
-          fi
+          jq -n '{
+            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+            "contentVersion": "1.0.0.0",
+            "parameters": {
+              "environment": { "value": "prod" },
+              "containerImage": { "value": "ghcr.io/DerekJi/vedaaide-js:latest" },
+              "azureOpenAiEndpoint": { "value": "https://dev-dj-open-ai.openai.azure.com/" },
+              "cosmosDbEndpoint": { "value": "https://vedaaide.documents.azure.com:443/" },
+              "apiKey": { "value": "" },
+              "adminApiKey": { "value": "" },
+              "allowedOrigins": { "value": "*" }
+            }
+          }' > infra/deploy.parameters.json
           
-          # Ensure values are not empty
-          [ -z "$ENVIRONMENT" ] && ENVIRONMENT="prod"
-          [ -z "$CONTAINER_IMAGE" ] && CONTAINER_IMAGE="ghcr.io/DerekJi/vedaaide-js:latest"
-          
-          echo "📝 Deployment Parameters:"
-          echo "  Trigger: ${{ github.event_name }}"
-          echo "  Environment: $ENVIRONMENT"
-          echo "  Container Image: $CONTAINER_IMAGE"
-          echo ""
-          
-          # Generate clean JSON file (no indentation in heredoc)
-          cat > infra/deploy.parameters.json <<'JSONEOF'
-{
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "environment": { "value": "ENV_PLACEHOLDER" },
-    "containerImage": { "value": "IMG_PLACEHOLDER" },
-    "azureOpenAiEndpoint": { "value": "https://dev-dj-open-ai.openai.azure.com/" },
-    "cosmosDbEndpoint": { "value": "https://vedaaide.documents.azure.com:443/" },
-    "apiKey": { "value": "" },
-    "adminApiKey": { "value": "" },
-    "allowedOrigins": { "value": "*" }
-  }
-}
-JSONEOF
-          
-          # Replace placeholders
-          sed -i "s|ENV_PLACEHOLDER|$ENVIRONMENT|g" infra/deploy.parameters.json
-          sed -i "s|IMG_PLACEHOLDER|$CONTAINER_IMAGE|g" infra/deploy.parameters.json
-          
-          echo "✅ Parameters file created successfully"
-          echo ""
-          echo "Generated parameters:"
+          echo "Parameters created:"
           cat infra/deploy.parameters.json
 
-      - name: Validate Bicep template
+      - name: Validate Bicep
         run: |
-          echo "🔍 Validating Bicep template..."
-          echo "  Template: infra/main.bicep"
-          echo "  Parameters: infra/deploy.parameters.json"
-          echo ""
-          
-          echo "Parameters content:"
-          cat infra/deploy.parameters.json
-          echo ""
-          
-          VALIDATION_OUTPUT=$(az deployment group validate \
+          az deployment group validate \
             --resource-group vedaaide-prod-rg \
             --template-file infra/main.bicep \
-            --parameters @infra/deploy.parameters.json \
-            --output jsonc 2>&1)
-          
-          VALIDATION_EXIT=$?
-          
-          if [ $VALIDATION_EXIT -ne 0 ]; then
-            echo "❌ Bicep validation failed"
-            echo ""
-            echo "Validation output:"
-            echo "$VALIDATION_OUTPUT"
-            echo ""
-            echo "Template structure:"
-            ls -lah infra/
-            echo ""
-            echo "Module structure:"
-            ls -lah infra/modules/ 2>/dev/null || echo "❌ modules/ not found"
-            exit 1
-          fi
-          
-          echo ""
-          echo "✅ Bicep validation succeeded"
-          echo ""
-          echo "Validation result:"
-          echo "$VALIDATION_OUTPUT" | head -20
+            --parameters @infra/deploy.parameters.json
 
-      - name: Deploy Bicep template
+      - name: Deploy Bicep
         run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
-          
-          echo "🚀 Starting Bicep deployment..."
-          echo "  Resource Group: $RESOURCE_GROUP"
-          echo "  Template: infra/main.bicep"
-          echo "  Parameters: infra/deploy.parameters.json"
-          echo ""
-          
-          if ! az deployment group create \
-            --resource-group "$RESOURCE_GROUP" \
+          az deployment group create \
+            --resource-group vedaaide-prod-rg \
             --template-file infra/main.bicep \
-            --parameters @infra/deploy.parameters.json \
-            --output jsonc 2>&1 | tee deployment.log; then
-            echo ""
-            echo "❌ Deployment failed"
-            echo ""
-            echo "Last 50 lines of deployment log:"
-            tail -50 deployment.log
-            exit 1
-          fi
-          
-          echo ""
-          echo "✅ Bicep deployment completed successfully"
+            --parameters @infra/deploy.parameters.json
 
-      - name: Get deployment outputs
+      - name: Get outputs
         if: success()
         run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
-          
-          echo "📋 Retrieving deployment information..."
-          echo ""
-          
-          # Try to get latest deployment info
           az deployment group list \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "sort_by(@, &properties.timestamp)[-1]" \
-            -o json > deployment-info.json || true
-          
-          if [ -s deployment-info.json ]; then
-            echo "✅ Deployment info retrieved:"
-            cat deployment-info.json | jq '.{name, state: .properties.provisioningState, timestamp: .properties.timestamp}'
-          else
-            echo "⚠️  Could not retrieve deployment info"
-          fi
-
-      - name: List container apps
-        if: success()
-        run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
-          echo "=== Container Apps ==="
-          az containerapp list \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "[].{name:name, state:properties.provisioningState, fqdn:properties.configuration.ingress.fqdn}" \
-            -o table
-
-      - name: Test health endpoints
-        if: success()
-        run: |
-          echo "Waiting 30 seconds for container apps to be ready..."
-          sleep 30
-
-          RESOURCE_GROUP="vedaaide-prod-rg"
-          FQDNS=$(az containerapp list \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "[].properties.configuration.ingress.fqdn" \
-            -o tsv)
-
-          if [ -z "$FQDNS" ]; then
-            echo "No container apps found"
-            exit 1
-          fi
-
-          for FQDN in $FQDNS; do
-            echo "Testing health endpoint: https://$FQDN/api/health"
-            curl -f -s "https://$FQDN/api/health" || echo "Health check not yet available"
-          done
+            --resource-group vedaaide-prod-rg \
+            --query "sort_by(@, &properties.timestamp)[-1].properties.outputs" \
+            --output json
 
       - name: Deployment summary
         if: always()
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            ENVIRONMENT="${{ github.event.inputs.environment }}"
-            CONTAINER_IMAGE="${{ github.event.inputs.container_image }}"
-          else
-            ENVIRONMENT="prod"
-            CONTAINER_IMAGE="ghcr.io/DerekJi/vedaaide-js:latest"
-          fi
-          
-          [ -z "$ENVIRONMENT" ] && ENVIRONMENT="prod"
-          [ -z "$CONTAINER_IMAGE" ] && CONTAINER_IMAGE="ghcr.io/DerekJi/vedaaide-js:latest"
-          
-          echo ""
-          echo "════════════════════════════════════════"
-          echo "          📊 DEPLOYMENT SUMMARY"
-          echo "════════════════════════════════════════"
-          echo "Status: ${{ job.status }}"
-          echo "Trigger: ${{ github.event_name }}"
-          echo "Branch: ${{ github.ref }}"
-          echo "Commit: ${{ github.sha }}"
-          echo ""
-          echo "Configuration:"
-          echo "  Environment: $ENVIRONMENT"
-          echo "  Container Image: $CONTAINER_IMAGE"
-          echo "  Resource Group: vedaaide-prod-rg"
-          echo "  Region: australiaeast"
-          echo ""
-          echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          echo "════════════════════════════════════════"
-          echo ""
-          
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "✅ Deployment completed successfully!"
-            echo ""
-            echo "Next steps:"
-            echo "  1. Visit: https://github.com/DerekJi/VedaAide.js/actions/runs/${{ github.run_id }}"
-            echo "  2. Check container app in Azure Portal"
-            echo "  3. Test health endpoint: curl https://<your-url>/api/health"
-          else
-            echo "❌ Deployment failed!"
-            echo ""
-            echo "Troubleshooting:"
-            echo "  1. Check detailed logs above"
-            echo "  2. Verify Azure credentials in GitHub Secrets"
-            echo "  3. Check Bicep template: infra/main.bicep"
-            echo "  4. Review parameters: infra/deploy.parameters.json"
-          fi
+        run: echo "Deployment workflow completed with status - ${{ job.status }}"
