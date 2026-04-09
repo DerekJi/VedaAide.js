@@ -75,12 +75,19 @@ jobs:
         run: |
           RESOURCE_GROUP="vedaaide-prod-rg"
           LOCATION="australiaeast"
-          if az group exists --name "$RESOURCE_GROUP" | grep -q false; then
+          
+          echo "📦 Ensuring resource group exists..."
+          
+          if az group exists --name "$RESOURCE_GROUP" --output json | jq -e '.value == false' > /dev/null 2>&1; then
             echo "Creating resource group: $RESOURCE_GROUP"
             az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
+            echo "✅ Resource group created"
           else
-            echo "Resource group already exists: $RESOURCE_GROUP"
+            echo "✅ Resource group already exists: $RESOURCE_GROUP"
           fi
+          
+          # Verify it exists
+          az group show --name "$RESOURCE_GROUP" --output json | jq '{name, location}'
 
       - name: Create deployment parameters file
         run: |
@@ -110,7 +117,6 @@ jobs:
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "location": { "value": "australiaeast" },
     "environment": { "value": "ENV_PLACEHOLDER" },
     "containerImage": { "value": "IMG_PLACEHOLDER" },
     "azureOpenAiEndpoint": { "value": "https://dev-dj-open-ai.openai.azure.com/" },
