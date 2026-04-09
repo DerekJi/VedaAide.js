@@ -26,4 +26,4 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Show Account
-        run: az account show --query "{id: id, name: name}" -o json
+        run: az account show --query "[id, name]" -o json
