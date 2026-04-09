@@ -104,49 +104,54 @@ log_info "跳过详细验证，在部署时自动验证..."
 log_info "部署 Bicep 模板到 Azure..."
 log_warning "这可能需要 5-10 分钟，请耐心等待..."
 
-az deployment group create \
+if ! az deployment group create \
     --resource-group $RESOURCE_GROUP \
     --template-file infra/main.bicep \
     --parameters @infra/main.parameters.json \
-    --output table
+    --output table; then
+    log_error "部署失败"
+    exit 1
+fi
 
 log_success "部署完成！"
 
-# 获取部署输出
-log_info "获取部署信息..."
-DEPLOYMENT_INFO=$(az deployment group show \
-    --resource-group $RESOURCE_GROUP \
-    --name main \
-    --query "properties.outputs" -o json)
-
-API_URL=$(echo $DEPLOYMENT_INFO | jq -r '.apiUrl.value' 2>/dev/null || echo "N/A")
-CONTAINER_APP_NAME=$(echo $DEPLOYMENT_INFO | jq -r '.containerAppName.value' 2>/dev/null || echo "N/A")
-IDENTITY_PRINCIPAL_ID=$(echo $DEPLOYMENT_INFO | jq -r '.identityPrincipalId.value' 2>/dev/null || echo "N/A")
-IDENTITY_CLIENT_ID=$(echo $DEPLOYMENT_INFO | jq -r '.identityClientId.value' 2>/dev/null || echo "N/A")
+# 获取部署输出（简化版）
+log_info "检查部署的容器应用..."
+sleep 10
+CONTAINER_APP=$(az containerapp list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
 
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}✨ 部署信息${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo "API URL: $API_URL"
-echo "Container App: $CONTAINER_APP_NAME"
-echo "Managed Identity Principal ID: $IDENTITY_PRINCIPAL_ID"
-echo "Managed Identity Client ID: $IDENTITY_CLIENT_ID"
+echo "Container App: $CONTAINER_APP"
+echo "Resource Group: $RESOURCE_GROUP"
 echo ""
+
+if [ -n "$CONTAINER_APP" ]; then
+    CONTAINER_URL=$(az containerapp show --name $CONTAINER_APP --resource-group $RESOURCE_GROUP --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "N/A")
+    echo "URL: https://$CONTAINER_URL"
+    echo ""
+fi
 
 # 提示下一步
 log_info "下一步操作:"
-echo "  1. 为 Managed Identity 授予访问权限"
+echo "  1. 为 Managed Identity 授予访问权限（如果需要）"
 echo "     bash scripts/authorize-managed-identity.sh"
 echo ""
-echo "     或手动运行:"
-echo "     az role assignment create --role 'DocumentDB Account Contributor' --assignee-object-id $IDENTITY_PRINCIPAL_ID --scope /subscriptions/$SUBSCRIPTION_ID/resourcegroups/YOUR_COSMOS_RG/providers/Microsoft.DocumentDB/databaseAccounts/YOUR_COSMOS_NAME"
-echo ""
-echo "  2. 查看容器日志 (部署 10 分钟后)"
-echo "     az containerapp logs show --name $CONTAINER_APP_NAME --resource-group $RESOURCE_GROUP --follow"
+echo "  2. 查看容器日志 (部署后)"
+if [ -n "$CONTAINER_APP" ]; then
+    echo "     az containerapp logs show --name $CONTAINER_APP --resource-group $RESOURCE_GROUP --follow"
+else
+    echo "     az containerapp logs show --name <app-name> --resource-group $RESOURCE_GROUP --follow"
+fi
 echo ""
 echo "  3. 测试 API 健康检查"
-echo "     curl $API_URL/health"
+if [ -n "$CONTAINER_URL" ]; then
+    echo "     curl https://$CONTAINER_URL/api/health"
+else
+    echo "     curl https://<your-url>/api/health"
+fi
 echo ""
 
 log_success "部署脚本执行完成！"
