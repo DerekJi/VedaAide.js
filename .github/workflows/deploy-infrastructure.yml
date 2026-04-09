@@ -1,0 +1,122 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment (dev/staging/prod)'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      container_image:
+        description: 'Container image URI (e.g., ghcr.io/org/image:tag)'
+        required: true
+        default: 'ghcr.io/DerekJi/vedaaide-js:latest'
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Bicep Infrastructure
+    runs-on: ubuntu-latest
+    environment: infrastructure
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set Azure subscription
+        run: |
+          az account set --subscription "02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
+          az account show
+
+      - name: Create resource group
+        run: |
+          RESOURCE_GROUP="vedaaide-prod-rg"
+          LOCATION="australiaeast"
+          if az group exists --name "$RESOURCE_GROUP" | grep -q false; then
+            echo "Creating resource group: $RESOURCE_GROUP"
+            az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
+          else
+            echo "Resource group already exists: $RESOURCE_GROUP"
+          fi
+
+      - name: Validate Bicep template
+        run: |
+          az bicep build-params infra/main.parameters.json
+
+      - name: Deploy Bicep template
+        run: |
+          RESOURCE_GROUP="vedaaide-prod-rg"
+          ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
+          CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          COSMOS_ENDPOINT="https://vedaaide.documents.azure.com:443/"
+          OPENAI_ENDPOINT="https://dev-dj-open-ai.openai.azure.com/"
+          
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters \
+              environment="$ENVIRONMENT" \
+              containerImage="$CONTAINER_IMAGE" \
+              cosmosDbEndpoint="$COSMOS_ENDPOINT" \
+              azureOpenAiEndpoint="$OPENAI_ENDPOINT" \
+            --output table
+
+      - name: Get deployment outputs
+        if: success()
+        run: |
+          RESOURCE_GROUP="vedaaide-prod-rg"
+          echo "=== Deployment Outputs ==="
+          az deployment group list \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[-1].{name:name, state:properties.provisioningState, timestamp:properties.timestamp}" \
+            -o table
+
+      - name: List container apps
+        if: success()
+        run: |
+          RESOURCE_GROUP="vedaaide-prod-rg"
+          echo "=== Container Apps ==="
+          az containerapp list \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[].{name:name, state:properties.provisioningState, fqdn:properties.configuration.ingress.fqdn}" \
+            -o table
+
+      - name: Test health endpoints
+        if: success()
+        run: |
+          echo "Waiting 30 seconds for container apps to be ready..."
+          sleep 30
+          
+          RESOURCE_GROUP="vedaaide-prod-rg"
+          FQDNS=$(az containerapp list \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[].properties.configuration.ingress.fqdn" \
+            -o tsv)
+          
+          if [ -z "$FQDNS" ]; then
+            echo "No container apps found"
+            exit 1
+          fi
+          
+          for FQDN in $FQDNS; do
+            echo "Testing health endpoint: https://$FQDN/api/health"
+            curl -f -s "https://$FQDN/api/health" || echo "Health check not yet available"
+          done
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "=== Deployment Summary ==="
+          echo "Environment: ${{ github.event.inputs.environment || 'prod' }}"
+          echo "Container Image: ${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          echo "Status: ${{ job.status }}"
+          echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
