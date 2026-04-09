@@ -43,6 +43,34 @@ jobs:
           az account set --subscription "02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
           az account show
 
+      - name: Pre-deployment checks
+        run: |
+          echo "📋 Pre-deployment verification..."
+          echo ""
+          
+          echo "Checking directory structure:"
+          ls -la infra/ 2>/dev/null || echo "❌ infra/ directory not found"
+          echo ""
+          
+          echo "Checking Bicep files:"
+          ls -lah infra/main.bicep 2>/dev/null || echo "❌ infra/main.bicep not found"
+          ls -lah infra/modules/container-apps.bicep 2>/dev/null || echo "❌ infra/modules/container-apps.bicep not found"
+          echo ""
+          
+          echo "Checking Bicep syntax:"
+          if command -v bicep &> /dev/null; then
+            bicep lint infra/main.bicep || echo "⚠️ Bicep lint warnings"
+          else
+            echo "⚠️ Bicep not installed locally, will validate during deployment"
+          fi
+          echo ""
+          
+          echo "Checking Azure CLI:"
+          az --version | head -1
+          echo ""
+          
+          echo "✅ Pre-deployment checks completed"
+
       - name: Create resource group
         run: |
           RESOURCE_GROUP="vedaaide-prod-rg"
@@ -110,23 +138,37 @@ JSONEOF
           echo "  Parameters: infra/deploy.parameters.json"
           echo ""
           
-          if ! az deployment group validate \
+          echo "Parameters content:"
+          cat infra/deploy.parameters.json
+          echo ""
+          
+          VALIDATION_OUTPUT=$(az deployment group validate \
             --resource-group vedaaide-prod-rg \
             --template-file infra/main.bicep \
             --parameters @infra/deploy.parameters.json \
-            --output jsonc 2>&1; then
+            --output jsonc 2>&1)
+          
+          VALIDATION_EXIT=$?
+          
+          if [ $VALIDATION_EXIT -ne 0 ]; then
             echo "❌ Bicep validation failed"
             echo ""
-            echo "Checking template file..."
-            ls -lah infra/main.bicep
+            echo "Validation output:"
+            echo "$VALIDATION_OUTPUT"
             echo ""
-            echo "Checking parameters file..."
-            cat infra/deploy.parameters.json
+            echo "Template structure:"
+            ls -lah infra/
+            echo ""
+            echo "Module structure:"
+            ls -lah infra/modules/ 2>/dev/null || echo "❌ modules/ not found"
             exit 1
           fi
           
           echo ""
           echo "✅ Bicep validation succeeded"
+          echo ""
+          echo "Validation result:"
+          echo "$VALIDATION_OUTPUT" | head -20
 
       - name: Deploy Bicep template
         run: |
