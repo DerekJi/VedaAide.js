@@ -48,36 +48,67 @@ jobs:
             echo "Resource group already exists: $RESOURCE_GROUP"
           fi
 
+      - name: Create deployment parameters file
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
+          CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          
+          cat > infra/deploy.parameters.json <<EOF
+          {
+            "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+            "contentVersion": "1.0.0.0",
+            "parameters": {
+              "location": { "value": "australiaeast" },
+              "environment": { "value": "$ENVIRONMENT" },
+              "containerImage": { "value": "$CONTAINER_IMAGE" },
+              "azureOpenAiEndpoint": { "value": "https://dev-dj-open-ai.openai.azure.com/" },
+              "cosmosDbEndpoint": { "value": "https://vedaaide.documents.azure.com:443/" },
+              "apiKey": { "value": "" },
+              "adminApiKey": { "value": "" },
+              "allowedOrigins": { "value": "*" }
+            }
+          }
+          EOF
+          
+          echo "✅ Parameters file created"
+          cat infra/deploy.parameters.json
+
       - name: Validate Bicep template
         run: |
-          az bicep build-params infra/main.parameters.json
+          az deployment group validate \
+            --resource-group vedaaide-prod-rg \
+            --template-file infra/main.bicep \
+            --parameters @infra/deploy.parameters.json \
+            --verbose
+          echo "✅ Bicep validation succeeded"
 
       - name: Deploy Bicep template
         run: |
           RESOURCE_GROUP="vedaaide-prod-rg"
-          ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
-          CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
-          COSMOS_ENDPOINT="https://vedaaide.documents.azure.com:443/"
-          OPENAI_ENDPOINT="https://dev-dj-open-ai.openai.azure.com/"
-
+          
+          echo "🚀 Starting Bicep deployment..."
           az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
             --template-file infra/main.bicep \
-            --parameters \
-              environment="$ENVIRONMENT" \
-              containerImage="$CONTAINER_IMAGE" \
-              cosmosDbEndpoint="$COSMOS_ENDPOINT" \
-              azureOpenAiEndpoint="$OPENAI_ENDPOINT" \
-            --output table
+            --parameters @infra/deploy.parameters.json \
+            --output jsonc \
+            --verbose || (echo "❌ Deployment failed"; exit 1)
+          
+          echo "✅ Bicep deployment completed"
 
       - name: Get deployment outputs
         if: success()
         run: |
           RESOURCE_GROUP="vedaaide-prod-rg"
+          DEPLOYMENT_ID=$(az deployment group list --resource-group "$RESOURCE_GROUP" --query "[-1].id" -o tsv)
+          
           echo "=== Deployment Outputs ==="
-          az deployment group list \
+          echo "Deployment ID: $DEPLOYMENT_ID"
+          
+          az deployment group show \
+            --name main \
             --resource-group "$RESOURCE_GROUP" \
-            --query "[-1].{name:name, state:properties.provisioningState, timestamp:properties.timestamp}" \
+            --query "properties.outputs" \
             -o table
 
       - name: List container apps
