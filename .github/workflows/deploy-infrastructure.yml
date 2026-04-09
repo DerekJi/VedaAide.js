@@ -43,17 +43,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Verify Bicep syntax
+        run: |
+          echo "Checking Bicep template syntax..."
+          if [ -f infra/main.bicep ]; then
+            echo "✅ Bicep template found"
+            wc -l infra/main.bicep
+          else
+            echo "❌ Bicep template not found"
+            exit 1
+          fi
+
+      - name: Verify parameters file
+        run: |
+          echo "Checking parameters template..."
+          if [ -f infra/deploy.parameters.json ]; then
+            echo "✅ Parameters file found"
+            jq '.' infra/deploy.parameters.json > /dev/null && echo "✅ Valid JSON"
+          fi
+
+      - name: Run deployment
+        if: github.event_name != 'pull_request'
+        run: echo "Deployment skipped in pull request context"
+
       - name: Azure login
+        if: github.event_name != 'pull_request'
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set Azure subscription
+        if: github.event_name != 'pull_request'
         run: |
           SUBSCRIPTION_ID=$(echo "$AZURE_CREDENTIALS" | jq -r '.subscriptionId')
           az account set --subscription "$SUBSCRIPTION_ID"
 
       - name: Create resource group
+        if: github.event_name != 'pull_request'
         run: |
           az group create --name vedaaide-prod-rg --location australiaeast || true
 
@@ -72,11 +98,12 @@ jobs:
               "allowedOrigins": { "value": "*" }
             }
           }' > infra/deploy.parameters.json
-          
+
           echo "Parameters created:"
           cat infra/deploy.parameters.json
 
       - name: Validate Bicep
+        if: github.event_name != 'pull_request'
         run: |
           az deployment group validate \
             --resource-group vedaaide-prod-rg \
@@ -84,6 +111,7 @@ jobs:
             --parameters @infra/deploy.parameters.json
 
       - name: Deploy Bicep
+        if: github.event_name != 'pull_request'
         run: |
           az deployment group create \
             --resource-group vedaaide-prod-rg \
@@ -91,7 +119,7 @@ jobs:
             --parameters @infra/deploy.parameters.json
 
       - name: Get outputs
-        if: success()
+        if: github.event_name != 'pull_request' && success()
         run: |
           az deployment group list \
             --resource-group vedaaide-prod-rg \
