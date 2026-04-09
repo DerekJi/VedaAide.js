@@ -43,6 +43,27 @@ jobs:
           az account set --subscription "02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
           az account show
 
+      - name: Diagnose Azure resources
+        run: |
+          echo "🔍 Diagnosing Azure Resources..."
+          echo ""
+          
+          echo "1️⃣ Checking Cosmos DB accounts:"
+          az cosmosdb database-accounts list \
+            --query "[].{name, endpoint: documentEndpoint, status: provisioningState}" \
+            -o table || echo "⚠️  Could not list Cosmos accounts"
+          echo ""
+          
+          echo "2️⃣ Checking Azure Cognitive Services (OpenAI):"
+          az cognitiveservices account list --query "[].{name, kind}" -o table || echo "⚠️  Could not list cognitive accounts"
+          echo ""
+          
+          echo "3️⃣ Current subscription:"
+          az account show --query "{id: id, name: name}" -o json
+          echo ""
+          
+          echo "✅ Resource diagnostics complete"
+
       - name: Pre-deployment checks
         run: |
           echo "📋 Pre-deployment verification..."
