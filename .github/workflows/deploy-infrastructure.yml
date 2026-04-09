@@ -1,6 +1,12 @@
 name: Deploy Infrastructure
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+      - '.github/workflows/deploy-infrastructure.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -50,8 +56,16 @@ jobs:
 
       - name: Create deployment parameters file
         run: |
-          ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
-          CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          # Use manual inputs if available (workflow_dispatch), otherwise use defaults
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          [ -z "$ENVIRONMENT" ] && ENVIRONMENT="prod"
+          
+          CONTAINER_IMAGE="${{ github.event.inputs.container_image }}"
+          [ -z "$CONTAINER_IMAGE" ] && CONTAINER_IMAGE="ghcr.io/DerekJi/vedaaide-js:latest"
+          
+          echo "Deploying with:"
+          echo "  Environment: $ENVIRONMENT"
+          echo "  Container Image: $CONTAINER_IMAGE"
           
           cat > infra/deploy.parameters.json <<'EOF'
 {
@@ -153,8 +167,17 @@ EOF
       - name: Deployment summary
         if: always()
         run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          [ -z "$ENVIRONMENT" ] && ENVIRONMENT="prod"
+          
+          CONTAINER_IMAGE="${{ github.event.inputs.container_image }}"
+          [ -z "$CONTAINER_IMAGE" ] && CONTAINER_IMAGE="ghcr.io/DerekJi/vedaaide-js:latest"
+          
           echo "=== Deployment Summary ==="
-          echo "Environment: ${{ github.event.inputs.environment || 'prod' }}"
-          echo "Container Image: ${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Environment: $ENVIRONMENT"
+          echo "Container Image: $CONTAINER_IMAGE"
           echo "Status: ${{ job.status }}"
           echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
