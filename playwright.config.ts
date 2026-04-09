@@ -29,14 +29,15 @@ export default defineConfig({
     },
   ],
 
-  // Start the Next.js dev server automatically during local test runs.
-  // In CI the server is assumed to be already running (started separately).
-  webServer: process.env.CI
-    ? undefined
-    : {
-        command: "npm run dev",
-        url: BASE_URL,
-        reuseExistingServer: true,
-        timeout: 120_000,
-      },
+  // Start the Next.js server automatically.
+  // In CI, a production build runs `npm start` (requires prior `npm run build`).
+  // Locally, `npm run dev` is used with reuse of any already-running server.
+  webServer: {
+    command: process.env.CI ? "npm start" : "npm run dev",
+    url: BASE_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    stdout: "ignore",
+    stderr: "pipe",
+  },
 });
