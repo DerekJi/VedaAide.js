@@ -13,6 +13,9 @@ jobs:
   hello:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Hello from GitHub Actions!"
-      - run: echo "OS: $(uname -a)"
-      - run: echo "Workflows in this repo should now work"
+      - name: Hello
+        run: echo "Hello from GitHub Actions!"
+      - name: Check OS
+        run: echo "OS: $(uname -a)"
+      - name: Status
+        run: echo "Workflows in this repo should now work"
