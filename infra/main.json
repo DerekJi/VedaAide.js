@@ -1,0 +1,323 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.41.2.15936",
+      "templateHash": "13860258341373013348"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "australiaeast",
+      "metadata": {
+        "description": "部署区域"
+      }
+    },
+    "environment": {
+      "type": "string",
+      "defaultValue": "dev",
+      "allowedValues": ["dev", "staging", "prod"],
+      "metadata": {
+        "description": "应用环境标识（dev / staging / prod）"
+      }
+    },
+    "containerImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Container Apps 镜像地址（如 ghcr.io/org/vedaaide-api:latest）"
+      }
+    },
+    "azureOpenAiEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure OpenAI 端点（使用 Managed Identity 时必填，ApiKey 留空）"
+      }
+    },
+    "cosmosDbEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "CosmosDB 账户端点（使用 Managed Identity 时必填，AccountKey 留空）"
+      }
+    },
+    "apiKey": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "VedaAide API Key（留空则禁用认证，仅限开发）"
+      }
+    },
+    "adminApiKey": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "VedaAide Admin API Key"
+      }
+    },
+    "allowedOrigins": {
+      "type": "string",
+      "defaultValue": "*",
+      "metadata": {
+        "description": "允许跨域的来源，逗号分隔或 *"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "vedaaide-infra",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "containerImage": {
+            "value": "[parameters('containerImage')]"
+          },
+          "azureOpenAiEndpoint": {
+            "value": "[parameters('azureOpenAiEndpoint')]"
+          },
+          "cosmosDbEndpoint": {
+            "value": "[parameters('cosmosDbEndpoint')]"
+          },
+          "apiKey": {
+            "value": "[parameters('apiKey')]"
+          },
+          "adminApiKey": {
+            "value": "[parameters('adminApiKey')]"
+          },
+          "allowedOrigins": {
+            "value": "[parameters('allowedOrigins')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "8231863283273616004"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "部署区域"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "环境标识"
+              }
+            },
+            "containerImage": {
+              "type": "string",
+              "metadata": {
+                "description": "容器镜像地址"
+              }
+            },
+            "azureOpenAiEndpoint": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure OpenAI 端点"
+              }
+            },
+            "cosmosDbEndpoint": {
+              "type": "string",
+              "metadata": {
+                "description": "CosmosDB 端点"
+              }
+            },
+            "apiKey": {
+              "type": "securestring"
+            },
+            "adminApiKey": {
+              "type": "securestring"
+            },
+            "allowedOrigins": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "prefix": "[format('vedaaide-{0}', parameters('environment'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('{0}-logs', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2024-03-01",
+              "name": "[format('{0}-env', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs', variables('prefix'))), '2023-09-01').customerId]",
+                    "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs', variables('prefix'))), '2023-09-01').primarySharedKey]"
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs', variables('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-07-31-preview",
+              "name": "[format('{0}-identity', variables('prefix'))]",
+              "location": "[parameters('location')]"
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2023-10-01-preview",
+              "name": "[format('{0}-docintel', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "kind": "FormRecognizer",
+              "sku": {
+                "name": "F0"
+              },
+              "properties": {
+                "publicNetworkAccess": "Enabled",
+                "customSubDomainName": "[format('{0}-docintel', variables('prefix'))]"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', format('{0}-docintel', variables('prefix')))]",
+              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', format('{0}-docintel', variables('prefix'))), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', variables('prefix'))), 'a97b65f3-24c7-4dac-a4e0-291a4c8dc61e')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4dac-a4e0-291a4c8dc61e')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', variables('prefix'))), '2023-07-31-preview').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('{0}-docintel', variables('prefix')))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', variables('prefix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "[format('{0}-api', variables('prefix'))]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', variables('prefix'))))]": {}
+                }
+              },
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', variables('prefix')))]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "ingress": {
+                    "external": true,
+                    "targetPort": 8080,
+                    "transport": "http",
+                    "allowInsecure": false
+                  },
+                  "secrets": "[if(or(not(empty(parameters('apiKey'))), not(empty(parameters('adminApiKey')))), flatten(createArray(if(not(empty(parameters('apiKey'))), createArray(createObject('name', 'api-key', 'value', parameters('apiKey'))), createArray()), if(not(empty(parameters('adminApiKey'))), createArray(createObject('name', 'admin-api-key', 'value', parameters('adminApiKey'))), createArray()))), createArray())]"
+                },
+                "template": {
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 3,
+                    "rules": [
+                      {
+                        "name": "http-scale",
+                        "http": {
+                          "metadata": {
+                            "concurrentRequests": "20"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "containers": [
+                    {
+                      "name": "vedaaide-api",
+                      "image": "[parameters('containerImage')]",
+                      "resources": {
+                        "cpu": "[json('0.5')]",
+                        "memory": "1Gi"
+                      },
+                      "env": "[flatten(createArray(createArray(createObject('name', 'Veda__StorageProvider', 'value', 'CosmosDb'), createObject('name', 'Veda__CosmosDb__Endpoint', 'value', parameters('cosmosDbEndpoint')), createObject('name', 'Veda__EmbeddingProvider', 'value', 'AzureOpenAI'), createObject('name', 'Veda__LlmProvider', 'value', 'AzureOpenAI'), createObject('name', 'Veda__AzureOpenAI__Endpoint', 'value', parameters('azureOpenAiEndpoint'))), if(not(empty(parameters('apiKey'))), createArray(createObject('name', 'Veda__Security__ApiKey', 'secretRef', 'api-key')), createArray()), if(not(empty(parameters('adminApiKey'))), createArray(createObject('name', 'Veda__Security__AdminApiKey', 'secretRef', 'admin-api-key')), createArray()), createArray(createObject('name', 'Veda__Security__AllowedOrigins', 'value', parameters('allowedOrigins')), createObject('name', 'Veda__DocumentIntelligence__Endpoint', 'value', reference(resourceId('Microsoft.CognitiveServices/accounts', format('{0}-docintel', variables('prefix'))), '2023-10-01-preview').endpoint), createObject('name', 'Veda__Vision__Enabled', 'value', 'true'), createObject('name', 'AZURE_CLIENT_ID', 'value', reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', variables('prefix'))), '2023-07-31-preview').clientId))))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', format('{0}-docintel', variables('prefix')))]",
+                "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', variables('prefix')))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', variables('prefix')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "apiUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', format('{0}-api', variables('prefix'))), '2024-03-01').configuration.ingress.fqdn)]"
+            },
+            "containerAppName": {
+              "type": "string",
+              "value": "[format('{0}-api', variables('prefix'))]"
+            },
+            "identityClientId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', variables('prefix'))), '2023-07-31-preview').clientId]"
+            },
+            "identityPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-identity', variables('prefix'))), '2023-07-31-preview').principalId]"
+            },
+            "docIntelligenceEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', format('{0}-docintel', variables('prefix'))), '2023-10-01-preview').endpoint]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "apiUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'vedaaide-infra'), '2025-04-01').outputs.apiUrl.value]"
+    },
+    "containerAppName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'vedaaide-infra'), '2025-04-01').outputs.containerAppName.value]"
+    },
+    "docIntelligenceEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'vedaaide-infra'), '2025-04-01').outputs.docIntelligenceEndpoint.value]"
+    }
+  }
+}

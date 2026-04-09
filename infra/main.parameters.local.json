@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "containerImage": {
+      "value": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+    },
+    "azureOpenAiEndpoint": {
+      "value": "https://dev-dj-open-ai.openai.azure.com/"
+    },
+    "cosmosDbEndpoint": {
+      "value": "https://vedaaide.documents.azure.com:443/"
+    },
+    "allowedOrigins": {
+      "value": "https://derekji.github.io"
+    }
+  }
+}

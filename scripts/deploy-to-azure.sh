@@ -79,7 +79,7 @@ fi
 
 # 生成部署参数文件
 log_info "生成部署参数文件..."
-cat > ../VedaAide.NET/infra/main.parameters.json <<EOF
+cat > infra/main.parameters.json <<EOF
 {
   "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
@@ -97,17 +97,8 @@ EOF
 
 log_success "参数文件已生成: ../VedaAide.NET/infra/main.parameters.json"
 
-# 验证 Bicep 模板
-log_info "验证 Bicep 模板..."
-if ! az deployment group validate \
-    --resource-group $RESOURCE_GROUP \
-    --template-file ../VedaAide.NET/infra/main.bicep \
-    --parameters @../VedaAide.NET/infra/main.parameters.json; then
-    log_error "Bicep 模板验证失败"
-    exit 1
-fi
-
-log_success "Bicep 模板验证通过"
+# 验证 Bicep 模板（跳过 - 直接部署会自动验证）
+log_info "跳过详细验证，在部署时自动验证..."
 
 # 部署 Bicep 模板
 log_info "部署 Bicep 模板到 Azure..."
@@ -115,8 +106,8 @@ log_warning "这可能需要 5-10 分钟，请耐心等待..."
 
 az deployment group create \
     --resource-group $RESOURCE_GROUP \
-    --template-file ../VedaAide.NET/infra/main.bicep \
-    --parameters @../VedaAide.NET/infra/main.parameters.json \
+    --template-file infra/main.bicep \
+    --parameters @infra/main.parameters.json \
     --output table
 
 log_success "部署完成！"
