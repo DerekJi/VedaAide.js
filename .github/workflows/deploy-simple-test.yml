@@ -4,7 +4,11 @@ on:
   push:
     branches:
       - main
-      - infra/**
+    paths:
+      - .github/workflows/deploy-simple-test.yml
+  pull_request:
+    branches:
+      - main
     paths:
       - .github/workflows/deploy-simple-test.yml
   workflow_dispatch:

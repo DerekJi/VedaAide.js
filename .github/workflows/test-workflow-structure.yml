@@ -2,7 +2,11 @@ name: Test Workflow Structure
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
