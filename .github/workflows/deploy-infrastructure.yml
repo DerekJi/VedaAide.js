@@ -53,22 +53,26 @@ jobs:
           ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
           CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
           
-          cat > infra/deploy.parameters.json <<EOF
-          {
-            "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-            "contentVersion": "1.0.0.0",
-            "parameters": {
-              "location": { "value": "australiaeast" },
-              "environment": { "value": "$ENVIRONMENT" },
-              "containerImage": { "value": "$CONTAINER_IMAGE" },
-              "azureOpenAiEndpoint": { "value": "https://dev-dj-open-ai.openai.azure.com/" },
-              "cosmosDbEndpoint": { "value": "https://vedaaide.documents.azure.com:443/" },
-              "apiKey": { "value": "" },
-              "adminApiKey": { "value": "" },
-              "allowedOrigins": { "value": "*" }
-            }
-          }
-          EOF
+          cat > infra/deploy.parameters.json <<'EOF'
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "australiaeast" },
+    "environment": { "value": "ENVIRONMENT_PLACEHOLDER" },
+    "containerImage": { "value": "CONTAINER_PLACEHOLDER" },
+    "azureOpenAiEndpoint": { "value": "https://dev-dj-open-ai.openai.azure.com/" },
+    "cosmosDbEndpoint": { "value": "https://vedaaide.documents.azure.com:443/" },
+    "apiKey": { "value": "" },
+    "adminApiKey": { "value": "" },
+    "allowedOrigins": { "value": "*" }
+  }
+}
+EOF
+          
+          # Replace placeholders with actual values
+          sed -i "s|ENVIRONMENT_PLACEHOLDER|$ENVIRONMENT|g" infra/deploy.parameters.json
+          sed -i "s|CONTAINER_PLACEHOLDER|$CONTAINER_IMAGE|g" infra/deploy.parameters.json
           
           echo "✅ Parameters file created"
           cat infra/deploy.parameters.json
@@ -100,16 +104,19 @@ jobs:
         if: success()
         run: |
           RESOURCE_GROUP="vedaaide-prod-rg"
-          DEPLOYMENT_ID=$(az deployment group list --resource-group "$RESOURCE_GROUP" --query "[-1].id" -o tsv)
           
-          echo "=== Deployment Outputs ==="
-          echo "Deployment ID: $DEPLOYMENT_ID"
+          echo "=== Retrieving deployment information ==="
           
-          az deployment group show \
-            --name main \
+          # Get the latest deployment
+          DEPLOYMENT=$(az deployment group list \
             --resource-group "$RESOURCE_GROUP" \
-            --query "properties.outputs" \
-            -o table
+            --query "sort_by(@, &properties.timestamp)[-1]" \
+            -o json)
+          
+          echo "$DEPLOYMENT" | jq '.'
+          
+          DEPLOYMENT_NAME=$(echo "$DEPLOYMENT" | jq -r '.name')
+          echo "Latest deployment: $DEPLOYMENT_NAME"
 
       - name: List container apps
         if: success()
