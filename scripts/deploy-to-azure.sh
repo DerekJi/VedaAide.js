@@ -95,7 +95,7 @@ cat > infra/main.parameters.json <<EOF
 }
 EOF
 
-log_success "参数文件已生成: ../VedaAide.NET/infra/main.parameters.json"
+log_success "参数文件已生成: infra/main.parameters.json"
 
 # 验证 Bicep 模板（跳过 - 直接部署会自动验证）
 log_info "跳过详细验证，在部署时自动验证..."
