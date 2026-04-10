@@ -102,8 +102,10 @@ jobs:
             "parameters": {
               "environment": { "value": "prod" },
               "containerImage": { "value": "ghcr.io/DerekJi/vedaaide-js:latest" },
-              "azureOpenAiEndpoint": { "value": "https://dev-dj-open-ai.openai.azure.com/" },
-              "cosmosDbEndpoint": { "value": "https://vedaaide.documents.azure.com:443/" },
+              "cosmosDbResourceGroup": { "value": "dev-dj-sbi-customer_group" },
+              "cosmosDbAccountName": { "value": "vedaaide" },
+              "openAiResourceGroup": { "value": "dev-dj-sbi-customer_group" },
+              "openAiAccountName": { "value": "dev-dj-open-ai" },
               "apiKey": { "value": "" },
               "adminApiKey": { "value": "" },
               "allowedOrigins": { "value": "*" }
