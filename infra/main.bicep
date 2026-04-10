@@ -13,11 +13,17 @@ param environment string = 'dev'
 @description('Container Apps 镜像地址（如 ghcr.io/org/vedaaide-api:latest）')
 param containerImage string
 
-@description('Azure OpenAI 端点（使用 Managed Identity 时必填，ApiKey 留空）')
-param azureOpenAiEndpoint string = ''
+@description('现有 CosmosDB 资源所在的资源组（复用模式）')
+param cosmosDbResourceGroup string = 'dev-dj-sbi-customer_group'
 
-@description('CosmosDB 账户端点（使用 Managed Identity 时必填，AccountKey 留空）')
-param cosmosDbEndpoint string = ''
+@description('现有 CosmosDB 账户名称（复用模式）')
+param cosmosDbAccountName string = 'vedaaide'
+
+@description('现有 Azure OpenAI 资源所在的资源组（复用模式）')
+param openAiResourceGroup string = 'dev-dj-sbi-customer_group'
+
+@description('现有 Azure OpenAI 账户名称（复用模式）')
+param openAiAccountName string = 'dev-dj-open-ai'
 
 @description('VedaAide API Key（留空则禁用认证，仅限开发）')
 @secure()
@@ -30,6 +36,22 @@ param adminApiKey string = ''
 @description('允许跨域的来源，逗号分隔或 *')
 param allowedOrigins string = '*'
 
+// ── Reference existing Azure services ────────────────────────────────────────
+resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-01-01' existing = {
+  name: cosmosDbAccountName
+  scope: resourceGroup(subscription().subscriptionId, cosmosDbResourceGroup)
+}
+
+resource openAiAccount 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' existing = {
+  name: openAiAccountName
+  scope: resourceGroup(subscription().subscriptionId, openAiResourceGroup)
+}
+
+resource docIntelligence 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' existing = {
+  name: 'vedadoc'
+  scope: resourceGroup(subscription().subscriptionId, 'dev-dj-sbi-customer_group')
+}
+
 // ── Modules ──────────────────────────────────────────────────────────────────
 module infra 'modules/container-apps.bicep' = {
   name: 'vedaaide-infra'
@@ -37,13 +59,18 @@ module infra 'modules/container-apps.bicep' = {
     location: location
     environment: environment
     containerImage: containerImage
-    azureOpenAiEndpoint: azureOpenAiEndpoint
-    cosmosDbEndpoint: cosmosDbEndpoint
+    azureOpenAiEndpoint: openAiAccount.properties.endpoint
+    cosmosDbEndpoint: cosmosDbAccount.properties.documentEndpoint
+    docIntelligenceEndpoint: docIntelligence.properties.endpoint
     apiKey: apiKey
     adminApiKey: adminApiKey
     allowedOrigins: allowedOrigins
   }
 }
+
+// NOTE: Role assignment for Managed Identity → Document Intelligence is created separately
+// after deployment due to cross-resource-group constraints.
+// See: deploy-infrastructure.yml for the post-deployment role assignment step
 
 output apiUrl string = infra.outputs.apiUrl
 output containerAppName string = infra.outputs.containerAppName

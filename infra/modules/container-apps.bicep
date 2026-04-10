@@ -16,6 +16,9 @@ param azureOpenAiEndpoint string
 @description('CosmosDB 端点')
 param cosmosDbEndpoint string
 
+@description('Document Intelligence 端点（现有资源）')
+param docIntelligenceEndpoint string
+
 @secure()
 param apiKey string
 
@@ -55,29 +58,6 @@ resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: '${prefix}-identity'
   location: location
-}
-
-// ── Azure AI Document Intelligence (S0: Standard paid tier, 1 free per subscription) ────
-resource docIntelligence 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = {
-  name: '${prefix}-docintel'
-  location: location
-  kind: 'FormRecognizer'
-  sku: { name: 'S0' }
-  properties: {
-    publicNetworkAccess: 'Enabled'
-    customSubDomainName: '${prefix}-docintel'
-  }
-}
-
-// Grant Managed Identity "Cognitive Services User" role on Document Intelligence
-resource docIntelRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(docIntelligence.id, identity.id, 'a97b65f3-24c7-4dac-a4e0-291a4c8dc61e')
-  scope: docIntelligence
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4dac-a4e0-291a4c8dc61e')
-    principalId: identity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
 }
 
 // ── Container App ─────────────────────────────────────────────────────────────
@@ -142,7 +122,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'Veda__Security__AllowedOrigins', value: allowedOrigins    }
 
             // ── Document Intelligence ──────────────────────────────────────────
-            { name: 'Veda__DocumentIntelligence__Endpoint', value: docIntelligence.properties.endpoint }
+            { name: 'Veda__DocumentIntelligence__Endpoint', value: docIntelligenceEndpoint }
             // ApiKey 留空 → 使用 Managed Identity
             { name: 'Veda__Vision__Enabled', value: 'true' }
 
@@ -159,4 +139,4 @@ output apiUrl string = 'https://${app.properties.configuration.ingress!.fqdn}'
 output containerAppName string = app.name
 output identityClientId string = identity.properties.clientId
 output identityPrincipalId string = identity.properties.principalId
-output docIntelligenceEndpoint string = docIntelligence.properties.endpoint
+output docIntelligenceEndpoint string = docIntelligenceEndpoint
