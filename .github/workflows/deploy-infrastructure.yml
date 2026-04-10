@@ -85,8 +85,9 @@ jobs:
       - name: Set Azure subscription
         if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
         run: |
-          SUBSCRIPTION_ID=$(echo "$AZURE_CREDENTIALS" | jq -r '.subscriptionId')
-          az account set --subscription "$SUBSCRIPTION_ID"
+          # Set subscription directly (Azure login already sets it, but being explicit)
+          az account set --subscription "02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
+          echo "✅ Subscription set to: 02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
 
       - name: Create resource group
         if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
