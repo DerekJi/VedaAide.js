@@ -137,6 +137,26 @@ jobs:
             --query "sort_by(@, &properties.timestamp)[-1].properties.outputs" \
             --output json
 
+      - name: Grant Managed Identity access to Document Intelligence
+        if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
+        run: |
+          # Get the identity principal ID from the deployment output or by querying the resource
+          IDENTITY_NAME="vedaaide-prod-identity"
+          IDENTITY_RG="vedaaide-prod-rg"
+          IDENTITY_ID=$(az identity show --resource-group "$IDENTITY_RG" --name "$IDENTITY_NAME" --query "principalId" -o tsv 2>/dev/null || echo "")
+
+          if [ -z "$IDENTITY_ID" ]; then
+            echo "⚠️ Could not find Managed Identity - skipping Document Intelligence role assignment"
+          else
+            echo "✅ Granting Managed Identity ($IDENTITY_ID) 'Cognitive Services User' role on Document Intelligence..."
+            az role assignment create \
+              --assignee "$IDENTITY_ID" \
+              --role "a97b65f3-24c7-4dac-a4e0-291a4c8dc61e" \
+              --scope "/subscriptions/02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0/resourceGroups/dev-dj-sbi-customer_group/providers/Microsoft.CognitiveServices/accounts/vedadoc" \
+              2>/dev/null || echo "ℹ️ Role assignment already exists or skipped"
+            echo "✅ Document Intelligence access granted"
+          fi
+
       - name: Deployment summary
         if: always()
         run: echo "Deployment workflow completed with status - ${{ job.status }}"
