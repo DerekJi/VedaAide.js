@@ -24,6 +24,10 @@ on:
       - infra/**
       - .github/workflows/deploy-infrastructure.yml
 
+concurrency:
+  group: deploy-infrastructure
+  cancel-in-progress: false
+
 jobs:
   deploy-infrastructure:
     name: Deploy Bicep Infrastructure
@@ -40,7 +44,7 @@ jobs:
           # Use workflow_dispatch inputs if available, otherwise use defaults for PR
           ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
           CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
-          
+
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "container_image=$CONTAINER_IMAGE" >> $GITHUB_OUTPUT
           echo "ℹ️  Environment: $ENVIRONMENT"
@@ -142,6 +146,16 @@ jobs:
             echo "Testing health endpoint: https://$FQDN/api/health"
             curl -f -s "https://$FQDN/api/health" || echo "Health check not yet available"
           done
+
+      - name: Show deployment failure details
+        if: failure()
+        run: |
+          echo "=== Deployment Failure Details ==="
+          az deployment group operation list \
+            --resource-group "vedaaide-prod-rg" \
+            --name main \
+            --query "[?properties.provisioningState=='Failed'].{resource:properties.targetResource.resourceType, name:properties.targetResource.resourceName, error:properties.statusMessage}" \
+            -o json || echo "(no operations found or deployment did not start)"
 
       - name: Deployment summary
         if: always()
