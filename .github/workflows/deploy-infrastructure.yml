@@ -87,9 +87,6 @@ jobs:
           RESOURCE_GROUP="vedaaide-prod-rg"
           ENVIRONMENT="${{ steps.params.outputs.environment }}"
           CONTAINER_IMAGE="${{ steps.params.outputs.container_image }}"
-          COSMOS_ENDPOINT="https://vedaaide.documents.azure.com:443/"
-          OPENAI_ENDPOINT="https://dev-dj-open-ai.openai.azure.com/"
-
           echo "Starting deployment..."
           echo "  Environment: $ENVIRONMENT"
           echo "  Container Image: $CONTAINER_IMAGE"
@@ -98,11 +95,10 @@ jobs:
           az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
             --template-file infra/main.bicep \
+            --parameters @infra/main.parameters.json \
             --parameters \
               environment="$ENVIRONMENT" \
               containerImage="$CONTAINER_IMAGE" \
-              cosmosDbEndpoint="$COSMOS_ENDPOINT" \
-              azureOpenAiEndpoint="$OPENAI_ENDPOINT" \
             --output table
 
       - name: Get deployment outputs
