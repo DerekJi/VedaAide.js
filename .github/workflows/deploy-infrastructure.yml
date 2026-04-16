@@ -75,7 +75,12 @@ jobs:
 
       - name: Validate Bicep template
         run: |
-          az bicep build-params --file infra/main.parameters.json
+          RESOURCE_GROUP="vedaaide-prod-rg"
+          echo "Validating Bicep template..."
+          az deployment group validate \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters @infra/main.parameters.json
 
       - name: Deploy Bicep template
         run: |
