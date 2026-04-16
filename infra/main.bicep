@@ -37,7 +37,7 @@ param adminApiKey string = ''
 param allowedOrigins string = '*'
 
 // ── Reference existing Azure services ────────────────────────────────────────
-resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-01-01' existing = {
+resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-11-15' existing = {
   name: cosmosDbAccountName
   scope: resourceGroup(subscription().subscriptionId, cosmosDbResourceGroup)
 }
