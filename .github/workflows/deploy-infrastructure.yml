@@ -16,6 +16,13 @@ on:
         description: "Container image URI (e.g., ghcr.io/org/image:tag)"
         required: true
         default: "ghcr.io/DerekJi/vedaaide-js:latest"
+  pull_request:
+    branches:
+      - main
+      - infra/devops
+    paths:
+      - infra/**
+      - .github/workflows/deploy-infrastructure.yml
 
 jobs:
   deploy-infrastructure:
@@ -26,6 +33,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Determine deployment parameters
+        id: params
+        run: |
+          # Use workflow_dispatch inputs if available, otherwise use defaults for PR
+          ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
+          CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "container_image=$CONTAINER_IMAGE" >> $GITHUB_OUTPUT
+          echo "ℹ️  Environment: $ENVIRONMENT"
+          echo "ℹ️  Container Image: $CONTAINER_IMAGE"
+
+      - name: Display trigger info
+        run: |
+          echo "Triggered by: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Actor: ${{ github.actor }}"
 
       - name: Azure login
         uses: azure/login@v2
@@ -55,10 +80,15 @@ jobs:
       - name: Deploy Bicep template
         run: |
           RESOURCE_GROUP="vedaaide-prod-rg"
-          ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
-          CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          ENVIRONMENT="${{ steps.params.outputs.environment }}"
+          CONTAINER_IMAGE="${{ steps.params.outputs.container_image }}"
           COSMOS_ENDPOINT="https://vedaaide.documents.azure.com:443/"
           OPENAI_ENDPOINT="https://dev-dj-open-ai.openai.azure.com/"
+
+          echo "Starting deployment..."
+          echo "  Environment: $ENVIRONMENT"
+          echo "  Container Image: $CONTAINER_IMAGE"
+          echo "  Resource Group: $RESOURCE_GROUP"
 
           az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
@@ -116,7 +146,8 @@ jobs:
         if: always()
         run: |
           echo "=== Deployment Summary ==="
-          echo "Environment: ${{ github.event.inputs.environment || 'prod' }}"
-          echo "Container Image: ${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Environment: ${{ steps.params.outputs.environment }}"
+          echo "Container Image: ${{ steps.params.outputs.container_image }}"
           echo "Status: ${{ job.status }}"
           echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
