@@ -10,6 +10,12 @@ param environment string
 @description('容器镜像地址')
 param containerImage string
 
+@description('User-Assigned Managed Identity 资源 ID')
+param identityId string
+
+@description('User-Assigned Managed Identity Client ID')
+param identityClientId string
+
 @description('Azure OpenAI 端点')
 param azureOpenAiEndpoint string
 
@@ -54,12 +60,6 @@ resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-// ── User-Assigned Managed Identity ───────────────────────────────────────────
-resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
-  name: '${prefix}-identity'
-  location: location
-}
-
 // ── Container App ─────────────────────────────────────────────────────────────
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: '${prefix}-api'
@@ -67,7 +67,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${identity.id}': {}
+      '${identityId}': {}
     }
   }
   properties: {
@@ -127,7 +127,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'Veda__Vision__Enabled', value: 'true' }
 
             // ── Managed Identity client ID ────────────────────────────────────
-            { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
+            { name: 'AZURE_CLIENT_ID', value: identityClientId }
           ]
         }
       ]
@@ -137,6 +137,4 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
 
 output apiUrl string = 'https://${app.properties.configuration.ingress!.fqdn}'
 output containerAppName string = app.name
-output identityClientId string = identity.properties.clientId
-output identityPrincipalId string = identity.properties.principalId
 output docIntelligenceEndpoint string = docIntelligenceEndpoint
