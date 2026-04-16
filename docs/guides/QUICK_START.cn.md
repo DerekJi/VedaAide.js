@@ -13,8 +13,8 @@ cp .env.example .env
 # 如需修改 .env — 默认配置支持本地 Ollama (localhost:11434)
 
 # 3. 拉取 Ollama 模型 (首次需要)
-ollama pull nomic-embed-text
-ollama pull llama3.2
+ollama pull bge-m3
+ollama pull qwen:7b-chat
 
 # 4. 初始化数据库
 npm run db:migrate

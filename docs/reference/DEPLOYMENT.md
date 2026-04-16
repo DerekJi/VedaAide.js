@@ -45,8 +45,8 @@ docker build -t vedaaide-js:latest .
 docker run -p 3000:3000 \
   -e DATABASE_URL=file:/data/dev.db \
   -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
-  -e OLLAMA_EMBEDDING_MODEL=nomic-embed-text \
-  -e OLLAMA_CHAT_MODEL=llama3.2 \
+  -e OLLAMA_EMBEDDING_MODEL=bge-m3 \
+  -e OLLAMA_CHAT_MODEL=qwen:7b-chat \
   -e NODE_ENV=production \
   vedaaide-js:latest
 
@@ -114,8 +114,8 @@ Set these as secrets or environment variables in your cloud platform:
 | `NODE_ENV`               | `production`             | Yes                      |
 | `DATABASE_URL`           | `file:/data/dev.db`      | Yes                      |
 | `OLLAMA_BASE_URL`        | `http://localhost:11434` | Yes (if no Azure OpenAI) |
-| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text`       | Yes                      |
-| `OLLAMA_CHAT_MODEL`      | `llama3.2`               | Yes                      |
+| `OLLAMA_EMBEDDING_MODEL` | `bge-m3`                 | Yes                      |
+| `OLLAMA_CHAT_MODEL`      | `qwen:7b-chat`           | Yes                      |
 
 ### Production (Azure OpenAI)
 

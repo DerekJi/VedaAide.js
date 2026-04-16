@@ -49,3 +49,4 @@ tsconfig.tsbuildinfo
 
 # Temporary tracking documents (not for source control)
 docs/skipped-tasks.md
+.agent-temp/

@@ -112,16 +112,45 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   } catch (err) {
     if (err instanceof VedaError) {
-      logger.error({ code: err.code, traceId, message: err.message }, "stream: error");
+      logger.error(
+        {
+          code: err.code,
+          traceId,
+          message: err.message,
+          cause: err.cause instanceof Error ? err.cause.message : String(err.cause),
+        },
+        "stream: veda error",
+      );
       return new Response(JSON.stringify(err.toJSON()), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
     }
-    logger.error({ err, traceId }, "stream: unexpected error");
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+
+    // Handle generic errors with better logging
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+
+    logger.error(
+      {
+        traceId,
+        errorType: err?.constructor?.name ?? "Unknown",
+        message: errorMessage,
+        stack: errorStack,
+      },
+      "stream: unexpected error",
+    );
+
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error",
+        message: errorMessage,
+        traceId,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }

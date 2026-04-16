@@ -12,9 +12,11 @@ import type { ChatMessage, ChatOptions } from "@/lib/types";
 export class OllamaChatService implements IChatService {
   private readonly client: Ollama;
   private readonly model: string;
+  private readonly baseUrl: string;
 
   constructor(baseUrl?: string, model?: string) {
-    this.client = new Ollama({ host: baseUrl ?? env.ollama.baseUrl });
+    this.baseUrl = baseUrl ?? env.ollama.baseUrl;
+    this.client = new Ollama({ host: this.baseUrl });
     this.model = model ?? env.ollama.chatModel;
   }
 
@@ -57,7 +59,11 @@ export class OllamaChatService implements IChatService {
         yield chunk.message.content;
       }
     } catch (cause) {
-      throw new ChatError(`Streaming chat failed: ${String(cause)}`, cause);
+      const errorMessage =
+        cause instanceof Error && cause.message.includes("ECONNREFUSED")
+          ? `Cannot connect to Ollama at ${this.baseUrl}. Make sure Ollama is running.`
+          : `Streaming chat failed: ${String(cause)}`;
+      throw new ChatError(errorMessage, cause);
     }
   }
 

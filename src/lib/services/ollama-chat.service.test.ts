@@ -19,7 +19,7 @@ describe("OllamaChatService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new OllamaChatService("http://localhost:11434", "llama3.2");
+    service = new OllamaChatService("http://localhost:11434", "qwen:7b-chat");
   });
 
   // ── chat ──────────────────────────────────────────────────────────────────────
