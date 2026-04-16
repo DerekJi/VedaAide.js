@@ -25,6 +25,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# OpenSSL is required by Prisma at runtime
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 RUN useradd -m -u 1001 nextjs
 
 # Copy built artifacts
