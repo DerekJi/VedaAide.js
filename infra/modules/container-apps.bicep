@@ -115,7 +115,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'NODE_ENV', value: 'production' }
 
             // ── Storage backend ───────────────────────────────────────────────
-            { name: 'DATABASE_URL', value: 'file:/data/dev.db' }
+            { name: 'DATABASE_URL', value: 'file:./data/prod.db' }
             { name: 'AZURE_COSMOS_ENDPOINT', value: cosmosDbEndpoint }
 
             // ── AI provider ───────────────────────────────────────────────────
