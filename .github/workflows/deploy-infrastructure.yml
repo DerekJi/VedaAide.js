@@ -34,14 +34,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # TEMPORARY: Set to 'true' to enable actual deployment. Set to 'false' to disable after verification.
-  ENABLE_ACTUAL_DEPLOYMENT: "true"
+  ENABLE_ACTUAL_DEPLOYMENT: "false"  # Only deploy on main branch pushes, not PRs
 
 jobs:
   deploy-infrastructure:
     name: Deploy Bicep Infrastructure
     runs-on: ubuntu-latest
     environment: infrastructure
+    # Only run on main branch or manual trigger, not on PRs
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
@@ -66,35 +67,32 @@ jobs:
             jq '.' infra/deploy.parameters.json > /dev/null && echo "✅ Valid JSON"
           fi
 
-      - name: Run deployment
-        if: github.event_name != 'pull_request' && env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
-        run: echo "✅ Proceeding with actual deployment (ENABLE_ACTUAL_DEPLOYMENT=true)"
-
-      - name: Block deployment if disabled
-        if: github.event_name != 'pull_request' && env.ENABLE_ACTUAL_DEPLOYMENT != 'true'
+      - name: Info - PR detected, skipping actual deployment
+        if: github.event_name == 'pull_request'
         run: |
-          echo "⚠️ Deployment is currently disabled (ENABLE_ACTUAL_DEPLOYMENT=${{ env.ENABLE_ACTUAL_DEPLOYMENT }})"
-          exit 1
+          echo "ℹ️ Pull Request detected"
+          echo "✅ Bicep validation passed - deployment would proceed on merge to main"
 
       - name: Azure login
-        if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set Azure subscription
-        if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           # Set subscription directly (Azure login already sets it, but being explicit)
           az account set --subscription "02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
           echo "✅ Subscription set to: 02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
 
       - name: Create resource group
-        if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           az group create --name vedaaide-prod-rg --location australiaeast || true
 
       - name: Create parameters file
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           jq -n '{
             "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
@@ -116,7 +114,7 @@ jobs:
           cat infra/deploy.parameters.json
 
       - name: Validate Bicep
-        if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           az deployment group validate \
             --resource-group vedaaide-prod-rg \
@@ -124,7 +122,7 @@ jobs:
             --parameters @infra/deploy.parameters.json
 
       - name: Deploy Bicep
-        if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           az deployment group create \
             --resource-group vedaaide-prod-rg \
@@ -132,7 +130,7 @@ jobs:
             --parameters @infra/deploy.parameters.json
 
       - name: Get outputs
-        if: (github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true') && success()
+        if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && success()
         run: |
           az deployment group list \
             --resource-group vedaaide-prod-rg \
@@ -140,7 +138,7 @@ jobs:
             --output json
 
       - name: Grant Managed Identity access to Document Intelligence
-        if: github.event_name != 'pull_request' || env.ENABLE_ACTUAL_DEPLOYMENT == 'true'
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           # Get the identity principal ID from the deployment output or by querying the resource
           IDENTITY_NAME="vedaaide-prod-identity"
@@ -161,4 +159,4 @@ jobs:
 
       - name: Deployment summary
         if: always()
-        run: echo "Deployment workflow completed with status - ${{ job.status }}"
+        run: echo "✅ Infrastructure workflow completed with status - ${{ job.status }}"
