@@ -39,10 +39,12 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/entrypoint.sh ./
 
 # Ensure nextjs user owns working directory
 RUN chown -R nextjs:nextjs /app
 RUN chmod -R 755 /app
+RUN chmod +x /app/entrypoint.sh
 
 USER nextjs
 
@@ -51,4 +53,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["/app/entrypoint.sh"]
