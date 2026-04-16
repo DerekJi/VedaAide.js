@@ -30,6 +30,9 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 
 RUN useradd -m -u 1001 nextjs
 
+# Create data directory for SQLite database
+RUN mkdir -p /app/data && chown nextjs:nextjs /app/data
+
 # Copy built artifacts
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
@@ -37,6 +40,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Ensure nextjs user owns working directory
+RUN chown -R nextjs:nextjs /app
 
 USER nextjs
 
