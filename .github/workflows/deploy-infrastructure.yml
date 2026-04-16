@@ -28,6 +28,10 @@ concurrency:
   group: deploy-infrastructure
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   deploy-infrastructure:
     name: Deploy Bicep Infrastructure
