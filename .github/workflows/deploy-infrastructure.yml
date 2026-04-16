@@ -75,7 +75,7 @@ jobs:
 
       - name: Validate Bicep template
         run: |
-          az bicep build-params infra/main.parameters.json
+          az bicep build-params --file infra/main.parameters.json
 
       - name: Deploy Bicep template
         run: |
