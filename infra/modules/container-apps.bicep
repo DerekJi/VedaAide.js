@@ -105,25 +105,25 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             memory: '1Gi'
           }
           env: [
-            // ── 存储后端 ──────────────────────────────────────────────────────
-            { name: 'Veda__StorageProvider',   value: 'CosmosDb' }
-            { name: 'Veda__CosmosDb__Endpoint', value: cosmosDbEndpoint }
-            // AccountKey 留空 → 使用 Managed Identity
+            // ── Deployment mode flag (enables Managed Identity auth) ───────────
+            { name: 'DEPLOYMENT_MODE', value: 'true' }
 
-            // ── AI 提供商 ──────────────────────────────────────────────────────
-            { name: 'Veda__EmbeddingProvider', value: 'AzureOpenAI' }
-            { name: 'Veda__LlmProvider',       value: 'AzureOpenAI' }
-            { name: 'Veda__AzureOpenAI__Endpoint', value: azureOpenAiEndpoint }
-            // ApiKey 留空 → 使用 Managed Identity
+            // ── Storage backend ───────────────────────────────────────────────
+            { name: 'AZURE_COSMOS_ENDPOINT', value: cosmosDbEndpoint }
 
-            // ── 安全 ────────────────────────────────────────────────────────────
+            // ── AI provider ───────────────────────────────────────────────────
+            { name: 'AZURE_OPENAI_ENDPOINT',              value: azureOpenAiEndpoint }
+            { name: 'AZURE_OPENAI_DEPLOYMENT_NAME',       value: 'gpt-4o' }
+            { name: 'AZURE_OPENAI_EMBEDDING_DEPLOYMENT',  value: 'text-embedding-3-small' }
+            { name: 'AZURE_OPENAI_API_VERSION',           value: '2024-08-01-preview' }
+
+            // ── Security ──────────────────────────────────────────────────────
             ...(!empty(apiKey)      ? [{ name: 'Veda__Security__ApiKey',      secretRef: 'api-key'       }] : [])
             ...(!empty(adminApiKey) ? [{ name: 'Veda__Security__AdminApiKey', secretRef: 'admin-api-key' }] : [])
-            { name: 'Veda__Security__AllowedOrigins', value: allowedOrigins    }
+            { name: 'Veda__Security__AllowedOrigins', value: allowedOrigins }
 
-            // ── Document Intelligence ──────────────────────────────────────────
+            // ── Document Intelligence ─────────────────────────────────────────
             { name: 'Veda__DocumentIntelligence__Endpoint', value: docIntelligenceEndpoint }
-            // ApiKey 留空 → 使用 Managed Identity
             { name: 'Veda__Vision__Enabled', value: 'true' }
 
             // ── Managed Identity client ID ────────────────────────────────────

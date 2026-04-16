@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "1056452375481172768"
+      "templateHash": "7937320385119430772"
     }
   },
   "parameters": {
@@ -168,7 +168,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "9738479923072600080"
+              "templateHash": "6934928183138226065"
             }
           },
           "parameters": {
@@ -310,7 +310,7 @@
                         "cpu": "[json('0.5')]",
                         "memory": "1Gi"
                       },
-                      "env": "[flatten(createArray(createArray(createObject('name', 'Veda__StorageProvider', 'value', 'CosmosDb'), createObject('name', 'Veda__CosmosDb__Endpoint', 'value', parameters('cosmosDbEndpoint')), createObject('name', 'Veda__EmbeddingProvider', 'value', 'AzureOpenAI'), createObject('name', 'Veda__LlmProvider', 'value', 'AzureOpenAI'), createObject('name', 'Veda__AzureOpenAI__Endpoint', 'value', parameters('azureOpenAiEndpoint'))), if(not(empty(parameters('apiKey'))), createArray(createObject('name', 'Veda__Security__ApiKey', 'secretRef', 'api-key')), createArray()), if(not(empty(parameters('adminApiKey'))), createArray(createObject('name', 'Veda__Security__AdminApiKey', 'secretRef', 'admin-api-key')), createArray()), createArray(createObject('name', 'Veda__Security__AllowedOrigins', 'value', parameters('allowedOrigins')), createObject('name', 'Veda__DocumentIntelligence__Endpoint', 'value', parameters('docIntelligenceEndpoint')), createObject('name', 'Veda__Vision__Enabled', 'value', 'true'), createObject('name', 'AZURE_CLIENT_ID', 'value', parameters('identityClientId')))))]"
+                      "env": "[flatten(createArray(createArray(createObject('name', 'DEPLOYMENT_MODE', 'value', 'true'), createObject('name', 'AZURE_COSMOS_ENDPOINT', 'value', parameters('cosmosDbEndpoint')), createObject('name', 'AZURE_OPENAI_ENDPOINT', 'value', parameters('azureOpenAiEndpoint')), createObject('name', 'AZURE_OPENAI_DEPLOYMENT_NAME', 'value', 'gpt-4o'), createObject('name', 'AZURE_OPENAI_EMBEDDING_DEPLOYMENT', 'value', 'text-embedding-3-small'), createObject('name', 'AZURE_OPENAI_API_VERSION', 'value', '2024-08-01-preview')), if(not(empty(parameters('apiKey'))), createArray(createObject('name', 'Veda__Security__ApiKey', 'secretRef', 'api-key')), createArray()), if(not(empty(parameters('adminApiKey'))), createArray(createObject('name', 'Veda__Security__AdminApiKey', 'secretRef', 'admin-api-key')), createArray()), createArray(createObject('name', 'Veda__Security__AllowedOrigins', 'value', parameters('allowedOrigins')), createObject('name', 'Veda__DocumentIntelligence__Endpoint', 'value', parameters('docIntelligenceEndpoint')), createObject('name', 'Veda__Vision__Enabled', 'value', 'true'), createObject('name', 'AZURE_CLIENT_ID', 'value', parameters('identityClientId')))))]"
                     }
                   ]
                 }

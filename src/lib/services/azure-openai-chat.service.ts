@@ -1,6 +1,7 @@
 import { ChatError, NotConfiguredError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { env } from "@/lib/env";
+import { getMsiToken } from "@/lib/utils/msi-token";
 import type { IChatService } from "@/lib/services/chat.service";
 import type { ChatMessage, ChatOptions } from "@/lib/types";
 
@@ -42,7 +43,7 @@ export class AzureOpenAIChatService implements IChatService {
       logger.debug({ deployment: this.deploymentName }, "AzureOpenAI chat");
       const response = await fetch(url, {
         method: "POST",
-        headers: this.buildHeaders(),
+        headers: await this.buildHeaders(),
         body: JSON.stringify(body),
       });
 
@@ -67,7 +68,7 @@ export class AzureOpenAIChatService implements IChatService {
       logger.debug({ deployment: this.deploymentName }, "AzureOpenAI chatStream");
       const response = await fetch(url, {
         method: "POST",
-        headers: this.buildHeaders(),
+        headers: await this.buildHeaders(),
         body: JSON.stringify(body),
       });
 
@@ -105,12 +106,14 @@ export class AzureOpenAIChatService implements IChatService {
     }
   }
 
-  private buildHeaders(): Record<string, string> {
+  private async buildHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.apiKey) {
       headers["api-key"] = this.apiKey;
+    } else {
+      const token = await getMsiToken("https://cognitiveservices.azure.com/");
+      headers["Authorization"] = `Bearer ${token}`;
     }
-    // Managed Identity: token is injected by Azure infrastructure
     return headers;
   }
 
