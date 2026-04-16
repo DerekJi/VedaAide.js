@@ -108,7 +108,7 @@ module infra 'modules/container-apps.bicep' = {
     azureOpenAiApiKey: azureOpenAiApiKey
     allowedOrigins: allowedOrigins
   }
-}}
+}
 
 output apiUrl string = infra.outputs.apiUrl
 output containerAppName string = infra.outputs.containerAppName
