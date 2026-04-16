@@ -27,6 +27,10 @@ param apiKey string = ''
 @secure()
 param adminApiKey string = ''
 
+@description('Azure OpenAI API Key（用于生产环境的API密钥认证，如不提供则使用Managed Identity）')
+@secure()
+param azureOpenAiApiKey string = ''
+
 @description('允许跨域的来源，逗号分隔或 *')
 param allowedOrigins string = '*'
 
@@ -101,9 +105,10 @@ module infra 'modules/container-apps.bicep' = {
     docIntelligenceEndpoint: docIntelligence.properties.endpoint
     apiKey: apiKey
     adminApiKey: adminApiKey
+    azureOpenAiApiKey: azureOpenAiApiKey
     allowedOrigins: allowedOrigins
   }
-}
+}}
 
 output apiUrl string = infra.outputs.apiUrl
 output containerAppName string = infra.outputs.containerAppName

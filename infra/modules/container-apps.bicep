@@ -31,6 +31,10 @@ param apiKey string
 @secure()
 param adminApiKey string
 
+@secure()
+@description('Azure OpenAI API Key')
+param azureOpenAiApiKey string = ''
+
 param allowedOrigins string
 
 var prefix = 'vedaaide-${environment}'
@@ -80,9 +84,10 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'http'
         allowInsecure: false
       }
-      secrets: !empty(apiKey) || !empty(adminApiKey) ? [
-        ...(!empty(apiKey)      ? [{ name: 'api-key',       value: apiKey      }] : [])
-        ...(!empty(adminApiKey) ? [{ name: 'admin-api-key', value: adminApiKey }] : [])
+      secrets: !empty(apiKey) || !empty(adminApiKey) || !empty(azureOpenAiApiKey) ? [
+        ...(!empty(apiKey)           ? [{ name: 'api-key',              value: apiKey           }] : [])
+        ...(!empty(adminApiKey)      ? [{ name: 'admin-api-key',        value: adminApiKey      }] : [])
+        ...(!empty(azureOpenAiApiKey) ? [{ name: 'azure-openai-api-key', value: azureOpenAiApiKey }] : [])
       ] : []
     }
     template: {
@@ -116,6 +121,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AZURE_OPENAI_DEPLOYMENT_NAME',       value: 'gpt-4o' }
             { name: 'AZURE_OPENAI_EMBEDDING_DEPLOYMENT',  value: 'text-embedding-3-small' }
             { name: 'AZURE_OPENAI_API_VERSION',           value: '2024-08-01-preview' }
+            ...(!empty(azureOpenAiApiKey) ? [{ name: 'AZURE_OPENAI_API_KEY', secretRef: 'azure-openai-api-key' }] : [])
 
             // ── Security ──────────────────────────────────────────────────────
             ...(!empty(apiKey)      ? [{ name: 'Veda__Security__ApiKey',      secretRef: 'api-key'       }] : [])
