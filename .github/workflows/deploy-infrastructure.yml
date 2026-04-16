@@ -40,7 +40,7 @@ jobs:
   deploy-infrastructure:
     name: Deploy Bicep Infrastructure
     runs-on: ubuntu-latest
-    environment: infrastructure
+    # environment: infrastructure  # Temporarily removed for debugging - may need configuration in GitHub
 
     steps:
       - name: Checkout code
