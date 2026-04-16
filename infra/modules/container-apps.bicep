@@ -112,8 +112,10 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             // ── Deployment mode flag (enables Managed Identity auth) ───────────
             { name: 'DEPLOYMENT_MODE', value: 'true' }
+            { name: 'NODE_ENV', value: 'production' }
 
             // ── Storage backend ───────────────────────────────────────────────
+            { name: 'DATABASE_URL', value: 'file:/data/dev.db' }
             { name: 'AZURE_COSMOS_ENDPOINT', value: cosmosDbEndpoint }
 
             // ── AI provider ───────────────────────────────────────────────────
