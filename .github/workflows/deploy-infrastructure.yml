@@ -16,6 +16,15 @@ on:
         description: "Container image URI (e.g., ghcr.io/org/image:tag)"
         required: true
         default: "ghcr.io/derekji/vedaaide-js:latest"
+  push:
+    branches:
+      - infra/devops
+    paths:
+      - infra/**
+      - .github/workflows/deploy-infrastructure.yml
+      - .dockerignore
+      - Dockerfile
+      - entrypoint.sh
   pull_request:
     branches:
       - main
