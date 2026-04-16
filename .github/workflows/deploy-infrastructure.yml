@@ -70,19 +70,34 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Verify Azure login and get subscription info
+        run: |
+          echo "✅ Step 1: Verifying Azure login..."
+          az account show || exit 1
+          echo "✅ Currently logged in account:"
+          az account list --output table
+
       - name: Set Azure subscription
         run: |
-          # Set subscription directly (Azure login already sets it, but being explicit)
-          az account set --subscription "02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
+          echo "✅ Step 2: Setting subscription..."
+          az account set --subscription "02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0" || exit 1
           echo "✅ Subscription set to: 02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0"
+          az account show
 
       - name: Create resource group
         run: |
-          az group create --name vedaaide-prod-rg --location australiaeast || true
+          echo "✅ Step 3: Creating resource group..."
+          az group create --name vedaaide-prod-rg --location australiaeast || {
+            echo "⚠️ Resource group creation failed or already exists, continuing..."
+          }
+          echo "✅ Resource group ready"
+          az group show --name vedaaide-prod-rg
 
       - name: Create parameters file
         run: |
-          jq -n '{
+          echo "✅ Step 4: Creating parameters file..."
+          cat > infra/deploy.parameters.json << 'EOF'
+          {
             "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
             "contentVersion": "1.0.0.0",
             "parameters": {
@@ -96,52 +111,99 @@ jobs:
               "adminApiKey": { "value": "" },
               "allowedOrigins": { "value": "*" }
             }
-          }' > infra/deploy.parameters.json
-
-          echo "Parameters created:"
+          }
+          EOF
+          
+          echo "✅ Parameters file created:"
           cat infra/deploy.parameters.json
+
+      - name: Validate parameters file
+        run: |
+          echo "✅ Step 5: Validating parameters file..."
+          if ! jq . infra/deploy.parameters.json > /dev/null; then
+            echo "❌ Invalid JSON in parameters file!"
+            exit 1
+          fi
+          echo "✅ Parameters file is valid JSON"
+
+      - name: Check referenced resources
+        continue-on-error: true
+        run: |
+          echo "✅ Step 6: Checking referenced Azure resources..."
+          echo "Checking CosmosDB account..."
+          az cosmosdb show --name vedaaide --resource-group dev-dj-sbi-customer_group || echo "⚠️ CosmosDB account not found"
+          echo "Checking OpenAI account..."
+          az cognitiveservices account show --name dev-dj-open-ai --resource-group dev-dj-sbi-customer_group || echo "⚠️ OpenAI account not found"
 
       - name: Validate Bicep
         run: |
+          echo "✅ Step 7: Validating Bicep template..."
           az deployment group validate \
             --resource-group vedaaide-prod-rg \
             --template-file infra/main.bicep \
-            --parameters @infra/deploy.parameters.json
+            --parameters @infra/deploy.parameters.json \
+            || {
+              echo "❌ Bicep validation failed!"
+              exit 1
+            }
+          echo "✅ Bicep template validation passed"
 
       - name: Deploy Bicep
         run: |
+          echo "✅ Step 8: Starting Bicep deployment..."
           az deployment group create \
             --resource-group vedaaide-prod-rg \
             --template-file infra/main.bicep \
-            --parameters @infra/deploy.parameters.json
+            --parameters @infra/deploy.parameters.json \
+            || {
+              echo "❌ Bicep deployment failed!"
+              echo "Fetching deployment error details..."
+              az deployment group list \
+                --resource-group vedaaide-prod-rg \
+                --query "sort_by(@, &properties.timestamp)[-1]" \
+                --output json
+              exit 1
+            }
+          echo "✅ Bicep deployment completed successfully"
 
       - name: Get outputs
         if: success()
+        continue-on-error: true
         run: |
+          echo "✅ Step 9: Fetching deployment outputs..."
           az deployment group list \
             --resource-group vedaaide-prod-rg \
             --query "sort_by(@, &properties.timestamp)[-1].properties.outputs" \
-            --output json
+            --output json || echo "⚠️ Could not fetch outputs"
 
       - name: Grant Managed Identity access to Document Intelligence
+        continue-on-error: true
         run: |
-          # Get the identity principal ID from the deployment output or by querying the resource
+          echo "✅ Step 10: Configuring Managed Identity..."
+          
           IDENTITY_NAME="vedaaide-prod-identity"
           IDENTITY_RG="vedaaide-prod-rg"
+          
+          echo "Looking for Managed Identity: $IDENTITY_NAME in $IDENTITY_RG..."
           IDENTITY_ID=$(az identity show --resource-group "$IDENTITY_RG" --name "$IDENTITY_NAME" --query "principalId" -o tsv 2>/dev/null || echo "")
 
           if [ -z "$IDENTITY_ID" ]; then
             echo "⚠️ Could not find Managed Identity - skipping Document Intelligence role assignment"
+            echo "Note: This may be expected if the Bicep template doesn't create a managed identity"
           else
-            echo "✅ Granting Managed Identity ($IDENTITY_ID) 'Cognitive Services User' role on Document Intelligence..."
+            echo "✅ Found Managed Identity: $IDENTITY_ID"
+            echo "Attempting to grant 'Cognitive Services User' role on Document Intelligence..."
             az role assignment create \
               --assignee "$IDENTITY_ID" \
               --role "a97b65f3-24c7-4dac-a4e0-291a4c8dc61e" \
               --scope "/subscriptions/02a35f91-5ef5-4ebb-9fdf-9143c7e5f3b0/resourceGroups/dev-dj-sbi-customer_group/providers/Microsoft.CognitiveServices/accounts/vedadoc" \
-              2>/dev/null || echo "ℹ️ Role assignment already exists or skipped"
-            echo "✅ Document Intelligence access granted"
+              2>/dev/null && echo "✅ Role assignment successful" || echo "ℹ️ Role assignment skipped or already exists"
           fi
 
       - name: Deployment summary
         if: always()
-        run: echo "Deployment workflow completed with status - ${{ job.status }}"
+        run: |
+          echo "=========================================="
+          echo "Deployment workflow completed"
+          echo "Status: ${{ job.status }}"
+          echo "=========================================="
