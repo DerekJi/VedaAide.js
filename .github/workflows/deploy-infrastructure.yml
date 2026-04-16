@@ -15,7 +15,7 @@ on:
       container_image:
         description: "Container image URI (e.g., ghcr.io/org/image:tag)"
         required: true
-        default: "ghcr.io/DerekJi/vedaaide-js:latest"
+        default: "ghcr.io/derekji/vedaaide-js:latest"
   pull_request:
     branches:
       - main
@@ -43,7 +43,7 @@ jobs:
         run: |
           # Use workflow_dispatch inputs if available, otherwise use defaults for PR
           ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
-          CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/DerekJi/vedaaide-js:latest' }}"
+          CONTAINER_IMAGE="${{ github.event.inputs.container_image || 'ghcr.io/derekji/vedaaide-js:latest' }}"
 
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "container_image=$CONTAINER_IMAGE" >> $GITHUB_OUTPUT
@@ -68,7 +68,7 @@ jobs:
 
       - name: Create resource group
         run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
+          RESOURCE_GROUP="dev-dj-sbi-customer_group"
           LOCATION="australiaeast"
           if az group exists --name "$RESOURCE_GROUP" | grep -q false; then
             echo "Creating resource group: $RESOURCE_GROUP"
@@ -79,7 +79,7 @@ jobs:
 
       - name: Validate Bicep template
         run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
+          RESOURCE_GROUP="dev-dj-sbi-customer_group"
           echo "Validating Bicep template..."
           az deployment group validate \
             --resource-group "$RESOURCE_GROUP" \
@@ -88,7 +88,7 @@ jobs:
 
       - name: Deploy Bicep template
         run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
+          RESOURCE_GROUP="dev-dj-sbi-customer_group"
           ENVIRONMENT="${{ steps.params.outputs.environment }}"
           CONTAINER_IMAGE="${{ steps.params.outputs.container_image }}"
           echo "Starting deployment..."
@@ -108,7 +108,7 @@ jobs:
       - name: Get deployment outputs
         if: success()
         run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
+          RESOURCE_GROUP="dev-dj-sbi-customer_group"
           echo "=== Deployment Outputs ==="
           az deployment group list \
             --resource-group "$RESOURCE_GROUP" \
@@ -118,7 +118,7 @@ jobs:
       - name: List container apps
         if: success()
         run: |
-          RESOURCE_GROUP="vedaaide-prod-rg"
+          RESOURCE_GROUP="dev-dj-sbi-customer_group"
           echo "=== Container Apps ==="
           az containerapp list \
             --resource-group "$RESOURCE_GROUP" \
@@ -131,7 +131,7 @@ jobs:
           echo "Waiting 30 seconds for container apps to be ready..."
           sleep 30
 
-          RESOURCE_GROUP="vedaaide-prod-rg"
+          RESOURCE_GROUP="dev-dj-sbi-customer_group"
           FQDNS=$(az containerapp list \
             --resource-group "$RESOURCE_GROUP" \
             --query "[].properties.configuration.ingress.fqdn" \
@@ -152,7 +152,7 @@ jobs:
         run: |
           echo "=== Deployment Failure Details ==="
           az deployment group operation list \
-            --resource-group "vedaaide-prod-rg" \
+            --resource-group "dev-dj-sbi-customer_group" \
             --name main \
             --query "[?properties.provisioningState=='Failed'].{resource:properties.targetResource.resourceType, name:properties.targetResource.resourceName, error:properties.statusMessage}" \
             -o json || echo "(no operations found or deployment did not start)"
