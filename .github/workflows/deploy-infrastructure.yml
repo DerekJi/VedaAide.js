@@ -124,6 +124,7 @@ jobs:
             --parameters \
               environment="$ENVIRONMENT" \
               containerImage="$CONTAINER_IMAGE" \
+              azureOpenAiApiKey="${{ secrets.AZURE_OPENAI_API_KEY }}" \
             --output table
 
       - name: Get deployment outputs
