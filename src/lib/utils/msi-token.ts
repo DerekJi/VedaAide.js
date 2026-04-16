@@ -34,41 +34,78 @@ export async function getMsiToken(resource: string): Promise<string> {
   });
 
   const url = `http://169.254.169.254/metadata/identity/oauth2/token?${params}`;
+  const maxRetries = 3;
 
-  try {
-    logger.debug({ url, clientId }, "Fetching MSI token from IMDS");
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      logger.debug({ url, clientId, attempt, maxRetries }, "Fetching MSI token from IMDS");
 
-    // Use AbortController for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+      // Use AbortController for timeout (increased to 15s for slow IMDS)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const response = await fetch(url, {
-      headers: { Metadata: "true" },
-      signal: controller.signal,
-    });
+      const response = await fetch(url, {
+        headers: { Metadata: "true" },
+        signal: controller.signal,
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const text = await response.text();
-      const err = `MSI token request failed (${response.status}): ${text}`;
-      logger.error({ status: response.status, text }, err);
-      throw new Error(err);
+      if (!response.ok) {
+        const text = await response.text();
+        const err = `MSI token request failed (${response.status}): ${text}`;
+        logger.error({ status: response.status, text, attempt }, err);
+        if (attempt < maxRetries) {
+          // Wait before retry (exponential backoff: 500ms, 1s, 2s)
+          await new Promise((r) => setTimeout(r, 500 * attempt));
+          continue;
+        }
+        throw new Error(err);
+      }
+
+      const data = (await response.json()) as {
+        access_token: string;
+        expires_in: string;
+      };
+
+      // Cache with 5-minute buffer before actual expiry
+      const expiresAt = Date.now() + (parseInt(data.expires_in, 10) - 300) * 1000;
+      cache.set(cacheKey, { token: data.access_token, expiresAt });
+      logger.debug({ resource, expiresIn: data.expires_in, attempt }, "MSI token acquired");
+
+      return data.access_token;
+    } catch (cause) {
+      const causeStr = cause instanceof Error ? cause.message : String(cause);
+      logger.warn(
+        {
+          resource,
+          url,
+          clientId,
+          attempt,
+          maxRetries,
+          cause: causeStr,
+        },
+        "MSI token fetch attempt failed",
+      );
+
+      if (attempt === maxRetries) {
+        logger.error(
+          {
+            resource,
+            url,
+            clientId,
+            cause: causeStr,
+          },
+          "MSI token fetch failed after all retries",
+        );
+        throw cause;
+      }
+
+      // Wait before retry (exponential backoff)
+      await new Promise((r) => setTimeout(r, 500 * attempt));
     }
-
-    const data = (await response.json()) as { access_token: string; expires_in: string };
-
-    // Cache with 5-minute buffer before actual expiry
-    const expiresAt = Date.now() + (parseInt(data.expires_in, 10) - 300) * 1000;
-    cache.set(cacheKey, { token: data.access_token, expiresAt });
-    logger.debug({ resource, expiresIn: data.expires_in }, "MSI token acquired");
-
-    return data.access_token;
-  } catch (cause) {
-    logger.error(
-      { resource, url, clientId, cause: cause instanceof Error ? cause.message : String(cause) },
-      "MSI token fetch failed",
-    );
-    throw cause;
   }
+
+  // Should never reach here
+  throw new Error(`MSI token retrieval failed after ${maxRetries} attempts`);
 }
