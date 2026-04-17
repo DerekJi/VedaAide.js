@@ -1,12 +1,11 @@
 name: Test & Verify
 
 on:
-  workflow_dispatch:  # Only manual trigger - disabled automatic triggers to save CI time
-  # DISABLED: push and pull_request triggers temporarily removed
-  # push:
-  #   branches: [main, develop]
-  # pull_request:
-  #   branches: [main, develop]
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

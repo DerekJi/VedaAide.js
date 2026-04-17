@@ -18,7 +18,7 @@ on:
         default: "ghcr.io/derekji/vedaaide-js:latest"
   push:
     branches:
-      - infra/devops
+      - main
     paths:
       - infra/**
       - .github/workflows/deploy-infrastructure.yml
@@ -31,7 +31,6 @@ on:
   pull_request:
     branches:
       - main
-      - infra/devops
     paths:
       - infra/**
       - .github/workflows/deploy-infrastructure.yml
@@ -45,10 +44,49 @@ permissions:
   packages: write
 
 jobs:
+  # ── Job 1: Verify Bicep & Docker (for PRs) ─────────────────────────────────
+  verify:
+    name: Verify Infrastructure
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Bicep template syntax
+        run: |
+          echo "Validating Bicep syntax..."
+          az bicep build --file infra/main.bicep --outdir /tmp
+          echo "✓ Bicep syntax validation passed"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (test on PR)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: PR Summary
+        run: |
+          echo "### ✅ Infrastructure Verification Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Verified:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Bicep template syntax" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Docker image build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Actual deployment will occur after merge to main branch." >> $GITHUB_STEP_SUMMARY
+
+  # ── Job 2: Deploy to Cloud (main branch push only) ────────────────────────
   deploy-infrastructure:
     name: Deploy Bicep Infrastructure
     runs-on: ubuntu-latest
     environment: infrastructure
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
@@ -196,7 +234,22 @@ jobs:
         run: |
           echo "=== Deployment Summary ==="
           echo "Trigger: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
           echo "Environment: ${{ steps.params.outputs.environment }}"
           echo "Container Image: ${{ steps.params.outputs.container_image }}"
           echo "Status: ${{ job.status }}"
           echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          
+          # GitHub deployment summary
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** main" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ steps.params.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** ${{ steps.params.outputs.container_image }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** [\`${{ github.sha }}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})" >> $GITHUB_STEP_SUMMARY
