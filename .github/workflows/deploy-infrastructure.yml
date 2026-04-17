@@ -25,6 +25,9 @@ on:
       - .dockerignore
       - Dockerfile
       - entrypoint.sh
+      - src/**
+      - prisma/**
+      - package*.json
   pull_request:
     branches:
       - main
