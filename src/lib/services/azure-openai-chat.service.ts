@@ -108,14 +108,13 @@ export class AzureOpenAIChatService implements IChatService {
 
   private async buildHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    // API Key is required when using AzureOpenAIChatService
-    // MSI (Managed Identity) is not supported in containerized environment due to IMDS timeout
-    if (!this.apiKey) {
-      throw new ChatError(
-        "Azure OpenAI API Key is required but not configured (AZURE_OPENAI_API_KEY not set)",
-      );
+    if (this.apiKey) {
+      headers["api-key"] = this.apiKey;
+    } else {
+      // No API key – use Managed Identity (Azure Container Apps with DEPLOYMENT_MODE=true)
+      const token = await getMsiToken("https://cognitiveservices.azure.com/");
+      headers["Authorization"] = `Bearer ${token}`;
     }
-    headers["api-key"] = this.apiKey;
     return headers;
   }
 

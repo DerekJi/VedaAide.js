@@ -99,9 +99,11 @@ export const env = {
       apiKey: rawEnv.AZURE_OPENAI_API_KEY,
       deploymentName: rawEnv.AZURE_OPENAI_DEPLOYMENT_NAME,
       apiVersion: rawEnv.AZURE_OPENAI_API_VERSION ?? "2024-08-01-preview",
-      // Azure OpenAI is configured ONLY if endpoint AND API Key are both present
-      // MSI (Managed Identity) is NOT supported in this environment due to IMDS timeout
-      isConfigured: !!rawEnv.AZURE_OPENAI_ENDPOINT && !!rawEnv.AZURE_OPENAI_API_KEY,
+      // Azure OpenAI is configured when endpoint is set AND either:
+      //   - API Key is provided (preferred), or
+      //   - Managed Identity is available (DEPLOYMENT_MODE=true in Azure Container Apps)
+      isConfigured:
+        !!rawEnv.AZURE_OPENAI_ENDPOINT && (!!rawEnv.AZURE_OPENAI_API_KEY || isDeployment),
     },
     cosmos: {
       endpoint: rawEnv.AZURE_COSMOS_ENDPOINT,
