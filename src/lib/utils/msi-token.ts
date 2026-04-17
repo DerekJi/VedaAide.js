@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Managed Identity token helper for Azure Container Apps
-// Fetches an access token from the IMDS endpoint using a User-Assigned MSI.
+// Managed Identity token helper
+// Supports both Azure Container Apps (IDENTITY_ENDPOINT/IDENTITY_HEADER)
+// and IMDS endpoint (169.254.169.254) for VMs/App Service.
 // Tokens are cached until 5 minutes before expiry to avoid redundant requests.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,25 +28,47 @@ export async function getMsiToken(resource: string): Promise<string> {
     return cached.token;
   }
 
-  const params = new URLSearchParams({
-    "api-version": "2018-02-01",
-    resource,
-    ...(clientId ? { client_id: clientId } : {}),
-  });
+  // Azure Container Apps uses IDENTITY_ENDPOINT + IDENTITY_HEADER (not IMDS 169.254.169.254)
+  const identityEndpoint = process.env.IDENTITY_ENDPOINT;
+  const identityHeader = process.env.IDENTITY_HEADER;
 
-  const url = `http://169.254.169.254/metadata/identity/oauth2/token?${params}`;
+  let url: string;
+  let headers: Record<string, string>;
+
+  if (identityEndpoint && identityHeader) {
+    // Azure Container Apps / App Service managed identity
+    const params = new URLSearchParams({
+      "api-version": "2019-08-01",
+      resource,
+      ...(clientId ? { client_id: clientId } : {}),
+    });
+    url = `${identityEndpoint}?${params}`;
+    headers = { "X-IDENTITY-HEADER": identityHeader };
+    logger.debug({ url, clientId }, "Using Container Apps MSI endpoint");
+  } else {
+    // IMDS fallback (VMs, local emulation)
+    const params = new URLSearchParams({
+      "api-version": "2018-02-01",
+      resource,
+      ...(clientId ? { client_id: clientId } : {}),
+    });
+    url = `http://169.254.169.254/metadata/identity/oauth2/token?${params}`;
+    headers = { Metadata: "true" };
+    logger.debug({ url, clientId }, "Using IMDS MSI endpoint");
+  }
+
   const maxRetries = 3;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      logger.debug({ url, clientId, attempt, maxRetries }, "Fetching MSI token from IMDS");
+      logger.debug({ url, clientId, attempt, maxRetries }, "Fetching MSI token");
 
       // Use AbortController for timeout (increased to 15s for slow IMDS)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetch(url, {
-        headers: { Metadata: "true" },
+        headers,
         signal: controller.signal,
       });
 
