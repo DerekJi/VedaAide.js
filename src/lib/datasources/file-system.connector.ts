@@ -5,9 +5,14 @@ import { prisma } from "@/lib/db";
 import { RagService } from "@/lib/services/rag.service";
 import { DocumentLoaderService } from "@/lib/services/document-loader.service";
 import { OllamaEmbeddingService } from "@/lib/services/ollama-embedding.service";
+import { AzureOpenAIEmbeddingService } from "@/lib/services/azure-openai-embedding.service";
 import { OllamaChatService } from "@/lib/services/ollama-chat.service";
+import { AzureOpenAIChatService } from "@/lib/services/azure-openai-chat.service";
 import { VedaError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { env } from "@/lib/env";
+import type { IEmbeddingService } from "@/lib/services/embedding.service";
+import type { IChatService } from "@/lib/services/chat.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data Source Connector Interfaces
@@ -50,9 +55,21 @@ export class FileSystemConnector implements IDataSourceConnector {
   ) {
     this.name = config.name ?? `fs:${config.path}`;
     this.loaderService = new DocumentLoaderService();
-    this.ragService =
-      ragService ?? new RagService(new OllamaEmbeddingService(), new OllamaChatService());
+    this.ragService = ragService ?? this.createDefaultRagService();
     this.extensions = new Set(config.extensions ?? [".txt", ".md", ".mdx"]);
+  }
+
+  private createDefaultRagService(): RagService {
+    // Use Azure OpenAI when configured, else Ollama
+    const embeddingService: IEmbeddingService = env.azure.openai.isConfigured
+      ? new AzureOpenAIEmbeddingService()
+      : new OllamaEmbeddingService();
+
+    const chatService: IChatService = env.azure.openai.isConfigured
+      ? new AzureOpenAIChatService()
+      : new OllamaChatService();
+
+    return new RagService(embeddingService, chatService);
   }
 
   async sync(): Promise<SyncResult> {

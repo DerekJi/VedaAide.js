@@ -2,10 +2,15 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { OllamaEmbeddingService } from "@/lib/services/ollama-embedding.service";
+import { AzureOpenAIEmbeddingService } from "@/lib/services/azure-openai-embedding.service";
 import { LangChainSqliteVectorStore } from "@/lib/vector-store/langchain-sqlite-vector-store";
 import { RagService } from "@/lib/services/rag.service";
 import { OllamaChatService } from "@/lib/services/ollama-chat.service";
+import { AzureOpenAIChatService } from "@/lib/services/azure-openai-chat.service";
 import { logger } from "@/lib/logger";
+import { env } from "@/lib/env";
+import type { IEmbeddingService } from "@/lib/services/embedding.service";
+import type { IChatService } from "@/lib/services/chat.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent Tools
@@ -26,7 +31,10 @@ export const searchKnowledgeBaseTool = new DynamicStructuredTool({
   }),
   func: async ({ query, topK }: { query: string; topK: number }) => {
     try {
-      const embeddings = new OllamaEmbeddingService();
+      // Use Azure OpenAI embedding when configured, else Ollama
+      const embeddings: IEmbeddingService = env.azure.openai.isConfigured
+        ? new AzureOpenAIEmbeddingService()
+        : new OllamaEmbeddingService();
       const vectorStore = new LangChainSqliteVectorStore(embeddings);
       const results = await vectorStore.similaritySearch(query, topK);
 
@@ -70,7 +78,16 @@ export const ingestDocumentTool = new DynamicStructuredTool({
     metadata?: Record<string, unknown>;
   }) => {
     try {
-      const ragService = new RagService(new OllamaEmbeddingService(), new OllamaChatService());
+      // Use Azure OpenAI when configured, else Ollama
+      const embeddingService: IEmbeddingService = env.azure.openai.isConfigured
+        ? new AzureOpenAIEmbeddingService()
+        : new OllamaEmbeddingService();
+
+      const chatService: IChatService = env.azure.openai.isConfigured
+        ? new AzureOpenAIChatService()
+        : new OllamaChatService();
+
+      const ragService = new RagService(embeddingService, chatService);
       const result = await ragService.ingest({ content, source, metadata });
 
       logger.debug({ source, chunkCount: result.chunkCount }, "agent: ingest_document");
