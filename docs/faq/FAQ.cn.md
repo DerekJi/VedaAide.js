@@ -6,8 +6,8 @@
 
 ## 问：需要哪些 Ollama 模型？
 
-- **嵌入：** `nomic-embed-text`（使用 `ollama pull nomic-embed-text` 拉取）
-- **聊天：** `llama3.2`（使用 `ollama pull llama3.2` 拉取）
+- **嵌入：** `bge-m3`（使用 `ollama pull bge-m3` 拉取）
+- **聊天：** `qwen:7b-chat`（使用 `ollama pull qwen:7b-chat` 拉取）
 
 任何 Ollama 兼容的嵌入或聊天模型可通过 `OLLAMA_EMBEDDING_MODEL` 和 `OLLAMA_CHAT_MODEL` 环境变量配置。
 

@@ -25,15 +25,26 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# OpenSSL is required by Prisma at runtime
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 RUN useradd -m -u 1001 nextjs
+
+# Create data directory for SQLite database
+RUN mkdir -p /app/data && chown nextjs:nextjs /app/data
 
 # Copy built artifacts
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/entrypoint.sh ./
+
+# Ensure nextjs user owns working directory
+RUN chown -R nextjs:nextjs /app
+RUN chmod -R 755 /app
+RUN chmod +x /app/entrypoint.sh
 
 USER nextjs
 
@@ -42,4 +53,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["/app/entrypoint.sh"]

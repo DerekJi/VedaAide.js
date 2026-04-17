@@ -16,7 +16,7 @@ describe("OllamaEmbeddingService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new OllamaEmbeddingService("http://localhost:11434", "nomic-embed-text");
+    service = new OllamaEmbeddingService("http://localhost:11434", "bge-m3");
   });
 
   // ── embedQuery ────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ describe("OllamaEmbeddingService", () => {
       const result = await service.embedQuery("hello world");
       expect(result).toEqual(embedding);
       expect(mockEmbed).toHaveBeenCalledWith({
-        model: "nomic-embed-text",
+        model: "bge-m3",
         input: "hello world",
       });
     });

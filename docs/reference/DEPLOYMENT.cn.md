@@ -45,8 +45,8 @@ docker build -t vedaaide-js:latest .
 docker run -p 3000:3000 \
   -e DATABASE_URL=file:/data/dev.db \
   -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
-  -e OLLAMA_EMBEDDING_MODEL=nomic-embed-text \
-  -e OLLAMA_CHAT_MODEL=llama3.2 \
+  -e OLLAMA_EMBEDDING_MODEL=bge-m3 \
+  -e OLLAMA_CHAT_MODEL=qwen:7b-chat \
   -e NODE_ENV=production \
   vedaaide-js:latest
 
@@ -114,8 +114,8 @@ az containerapp create \
 | `NODE_ENV`               | `production`             | 是                      |
 | `DATABASE_URL`           | `file:/data/dev.db`      | 是                      |
 | `OLLAMA_BASE_URL`        | `http://localhost:11434` | 是（如无 Azure OpenAI） |
-| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text`       | 是                      |
-| `OLLAMA_CHAT_MODEL`      | `llama3.2`               | 是                      |
+| `OLLAMA_EMBEDDING_MODEL` | `bge-m3`                 | 是                      |
+| `OLLAMA_CHAT_MODEL`      | `qwen:7b-chat`           | 是                      |
 
 ### 生产（Azure OpenAI）
 

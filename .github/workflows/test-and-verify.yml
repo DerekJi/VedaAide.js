@@ -1,10 +1,12 @@
-name: CI/CD Pipeline
+name: Test & Verify
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+  workflow_dispatch:  # Only manual trigger - disabled automatic triggers to save CI time
+  # DISABLED: push and pull_request triggers temporarily removed
+  # push:
+  #   branches: [main, develop]
+  # pull_request:
+  #   branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -78,8 +80,8 @@ jobs:
         env:
           DATABASE_URL: file:./e2e-test.db
           OLLAMA_BASE_URL: http://localhost:11434
-          OLLAMA_EMBEDDING_MODEL: nomic-embed-text
-          OLLAMA_CHAT_MODEL: llama3.2
+          OLLAMA_EMBEDDING_MODEL: bge-m3
+          OLLAMA_CHAT_MODEL: qwen:7b-chat
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -92,8 +94,8 @@ jobs:
           CI: "true"
           PLAYWRIGHT_BASE_URL: "http://localhost:3000"
           OLLAMA_BASE_URL: http://localhost:11434
-          OLLAMA_EMBEDDING_MODEL: nomic-embed-text
-          OLLAMA_CHAT_MODEL: llama3.2
+          OLLAMA_EMBEDDING_MODEL: bge-m3
+          OLLAMA_CHAT_MODEL: qwen:7b-chat
 
       - name: Upload Playwright report
         if: always()

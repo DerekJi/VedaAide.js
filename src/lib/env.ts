@@ -19,8 +19,8 @@ const baseSchema = z.object({
 
 const ollamaSchema = z.object({
   OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
-  OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text"),
-  OLLAMA_CHAT_MODEL: z.string().default("llama3.2"),
+  OLLAMA_EMBEDDING_MODEL: z.string().default("bge-m3"),
+  OLLAMA_CHAT_MODEL: z.string().default("qwen:7b-chat"),
 });
 
 const azureOpenAISchema = z.object({
@@ -89,8 +89,8 @@ export const env = {
 
   ollama: {
     baseUrl: rawEnv.OLLAMA_BASE_URL ?? "http://localhost:11434",
-    embeddingModel: rawEnv.OLLAMA_EMBEDDING_MODEL ?? "nomic-embed-text",
-    chatModel: rawEnv.OLLAMA_CHAT_MODEL ?? "llama3.2",
+    embeddingModel: rawEnv.OLLAMA_EMBEDDING_MODEL ?? "bge-m3",
+    chatModel: rawEnv.OLLAMA_CHAT_MODEL ?? "qwen:7b-chat",
   },
 
   azure: {
@@ -99,6 +99,9 @@ export const env = {
       apiKey: rawEnv.AZURE_OPENAI_API_KEY,
       deploymentName: rawEnv.AZURE_OPENAI_DEPLOYMENT_NAME,
       apiVersion: rawEnv.AZURE_OPENAI_API_VERSION ?? "2024-08-01-preview",
+      // Azure OpenAI is configured when endpoint is set AND either:
+      //   - API Key is provided (preferred), or
+      //   - Managed Identity is available (DEPLOYMENT_MODE=true in Azure Container Apps)
       isConfigured:
         !!rawEnv.AZURE_OPENAI_ENDPOINT && (!!rawEnv.AZURE_OPENAI_API_KEY || isDeployment),
     },

@@ -273,7 +273,7 @@ az containerapp update \
   --set-env-vars \
     "ASPNETCORE_ENVIRONMENT=Production" \
     "Veda__OllamaEndpoint=http://ollama:11434" \
-    "Veda__EmbeddingModel=nomic-embed-text" \
+    "Veda__EmbeddingModel=bge-m3" \
   --output table
 ```
 

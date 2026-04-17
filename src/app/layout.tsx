@@ -7,6 +7,9 @@ import { ToastProvider } from "@/components/ui/toast";
 export const metadata: Metadata = {
   title: "VedaAide",
   description: "AI-powered document assistant",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

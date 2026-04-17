@@ -44,8 +44,8 @@ DATABASE_URL=file:./dev.db
 
 # Ollama (本地)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-OLLAMA_CHAT_MODEL=llama3.2
+OLLAMA_EMBEDDING_MODEL=bge-m3
+OLLAMA_CHAT_MODEL=qwen:7b-chat
 
 # 日志记录
 LOG_LEVEL=info
@@ -89,8 +89,8 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ### 拉取所需模型
 
 ```bash
-ollama pull nomic-embed-text   # 嵌入模型 (~274 MB)
-ollama pull llama3.2           # 聊天模型 (~2 GB)
+ollama pull bge-m3   # 嵌入模型 (~274 MB)
+ollama pull qwen:7b-chat           # 聊天模型 (~2 GB)
 ```
 
 ### 验证 Ollama 运行中
@@ -187,8 +187,8 @@ docker compose up --build
 在 Ollama 容器内拉取模型：
 
 ```bash
-docker compose exec ollama ollama pull nomic-embed-text
-docker compose exec ollama ollama pull llama3.2
+docker compose exec ollama ollama pull bge-m3
+docker compose exec ollama ollama pull qwen:7b-chat
 ```
 
 ---

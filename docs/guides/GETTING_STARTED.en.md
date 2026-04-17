@@ -44,8 +44,8 @@ DATABASE_URL=file:./dev.db
 
 # Ollama (local)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-OLLAMA_CHAT_MODEL=llama3.2
+OLLAMA_EMBEDDING_MODEL=bge-m3
+OLLAMA_CHAT_MODEL=qwen:7b-chat
 
 # Logging
 LOG_LEVEL=info
@@ -89,8 +89,8 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ### Pull required models
 
 ```bash
-ollama pull nomic-embed-text   # embedding model (~274 MB)
-ollama pull llama3.2           # chat model (~2 GB)
+ollama pull bge-m3   # embedding model (~274 MB)
+ollama pull qwen:7b-chat           # chat model (~2 GB)
 ```
 
 ### Verify Ollama is running
@@ -187,8 +187,8 @@ docker compose up --build
 Pull models inside the Ollama container:
 
 ```bash
-docker compose exec ollama ollama pull nomic-embed-text
-docker compose exec ollama ollama pull llama3.2
+docker compose exec ollama ollama pull bge-m3
+docker compose exec ollama ollama pull qwen:7b-chat
 ```
 
 ---

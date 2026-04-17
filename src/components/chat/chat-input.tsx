@@ -35,6 +35,8 @@ export function ChatInput({ onSend, onStop, isLoading }: ChatInputProps) {
     }
   }
 
+  const isDisabled = !value.trim() || isLoading;
+
   return (
     <div className="border-t bg-white p-3 flex gap-2 items-end">
       <Textarea
@@ -48,11 +50,23 @@ export function ChatInput({ onSend, onStop, isLoading }: ChatInputProps) {
         className="flex-1 min-h-0 resize-none"
       />
       {isLoading ? (
-        <Button variant="secondary" size="icon" onClick={onStop} aria-label="Stop">
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={onStop}
+          aria-label="Stop"
+          title="Stop generation"
+        >
           <Square className="h-4 w-4" />
         </Button>
       ) : (
-        <Button size="icon" onClick={submit} disabled={!value.trim()} aria-label="Send">
+        <Button
+          size="icon"
+          onClick={submit}
+          disabled={isDisabled}
+          aria-label="Send"
+          title={isDisabled ? "Enter a message to send" : "Send message"}
+        >
           <Send className="h-4 w-4" />
         </Button>
       )}

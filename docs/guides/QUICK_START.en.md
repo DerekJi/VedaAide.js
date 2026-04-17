@@ -13,8 +13,8 @@ cp .env.example .env
 # Edit .env if needed — defaults work with Ollama running at localhost:11434
 
 # 3. Pull Ollama models (first time only)
-ollama pull nomic-embed-text
-ollama pull llama3.2
+ollama pull bge-m3
+ollama pull qwen:7b-chat
 
 # 4. Initialize database
 npm run db:migrate

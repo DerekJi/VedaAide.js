@@ -6,8 +6,8 @@ Yes. The app runs entirely locally with [Ollama](https://ollama.ai/) for embeddi
 
 ## Q: Which Ollama models are required?
 
-- **Embedding:** `nomic-embed-text` (pull with `ollama pull nomic-embed-text`)
-- **Chat:** `llama3.2` (pull with `ollama pull llama3.2`)
+- **Embedding:** `bge-m3` (pull with `ollama pull bge-m3`)
+- **Chat:** `qwen:7b-chat` (pull with `ollama pull qwen:7b-chat`)
 
 Any Ollama-compatible embedding or chat model can be configured via `OLLAMA_EMBEDDING_MODEL` and `OLLAMA_CHAT_MODEL` environment variables.
 

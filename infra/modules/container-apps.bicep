@@ -10,17 +10,30 @@ param environment string
 @description('容器镜像地址')
 param containerImage string
 
+@description('User-Assigned Managed Identity 资源 ID')
+param identityId string
+
+@description('User-Assigned Managed Identity Client ID')
+param identityClientId string
+
 @description('Azure OpenAI 端点')
 param azureOpenAiEndpoint string
 
 @description('CosmosDB 端点')
 param cosmosDbEndpoint string
 
+@description('Document Intelligence 端点（现有资源）')
+param docIntelligenceEndpoint string
+
 @secure()
 param apiKey string
 
 @secure()
 param adminApiKey string
+
+@secure()
+@description('Azure OpenAI API Key')
+param azureOpenAiApiKey string = ''
 
 param allowedOrigins string
 
@@ -51,35 +64,6 @@ resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-// ── User-Assigned Managed Identity ───────────────────────────────────────────
-resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
-  name: '${prefix}-identity'
-  location: location
-}
-
-// ── Azure AI Document Intelligence (F0: 500 pages/month free) ─────────────────
-resource docIntelligence 'Microsoft.CognitiveServices/accounts@2023-10-01-preview' = {
-  name: '${prefix}-docintel'
-  location: location
-  kind: 'FormRecognizer'
-  sku: { name: 'F0' }
-  properties: {
-    publicNetworkAccess: 'Enabled'
-    customSubDomainName: '${prefix}-docintel'
-  }
-}
-
-// Grant Managed Identity "Cognitive Services User" role on Document Intelligence
-resource docIntelRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(docIntelligence.id, identity.id, 'a97b65f3-24c7-4dac-a4e0-291a4c8dc61e')
-  scope: docIntelligence
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'a97b65f3-24c7-4dac-a4e0-291a4c8dc61e')
-    principalId: identity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
 // ── Container App ─────────────────────────────────────────────────────────────
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: '${prefix}-api'
@@ -87,7 +71,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${identity.id}': {}
+      '${identityId}': {}
     }
   }
   properties: {
@@ -96,13 +80,14 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: {
         external: true
-        targetPort: 8080
+        targetPort: 3000
         transport: 'http'
         allowInsecure: false
       }
-      secrets: !empty(apiKey) || !empty(adminApiKey) ? [
-        ...(!empty(apiKey)      ? [{ name: 'api-key',       value: apiKey      }] : [])
-        ...(!empty(adminApiKey) ? [{ name: 'admin-api-key', value: adminApiKey }] : [])
+      secrets: !empty(apiKey) || !empty(adminApiKey) || !empty(azureOpenAiApiKey) ? [
+        ...(!empty(apiKey)           ? [{ name: 'api-key',              value: apiKey           }] : [])
+        ...(!empty(adminApiKey)      ? [{ name: 'admin-api-key',        value: adminApiKey      }] : [])
+        ...(!empty(azureOpenAiApiKey) ? [{ name: 'azure-openai-api-key', value: azureOpenAiApiKey }] : [])
       ] : []
     }
     template: {
@@ -125,29 +110,32 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             memory: '1Gi'
           }
           env: [
-            // ── 存储后端 ──────────────────────────────────────────────────────
-            { name: 'Veda__StorageProvider',   value: 'CosmosDb' }
-            { name: 'Veda__CosmosDb__Endpoint', value: cosmosDbEndpoint }
-            // AccountKey 留空 → 使用 Managed Identity
+            // ── Deployment mode flag (enables Managed Identity auth) ───────────
+            { name: 'DEPLOYMENT_MODE', value: 'true' }
+            { name: 'NODE_ENV', value: 'production' }
 
-            // ── AI 提供商 ──────────────────────────────────────────────────────
-            { name: 'Veda__EmbeddingProvider', value: 'AzureOpenAI' }
-            { name: 'Veda__LlmProvider',       value: 'AzureOpenAI' }
-            { name: 'Veda__AzureOpenAI__Endpoint', value: azureOpenAiEndpoint }
-            // ApiKey 留空 → 使用 Managed Identity
+            // ── Storage backend ───────────────────────────────────────────────
+            { name: 'DATABASE_URL', value: 'file:/tmp/vedaaide.db' }
+            { name: 'AZURE_COSMOS_ENDPOINT', value: cosmosDbEndpoint }
 
-            // ── 安全 ────────────────────────────────────────────────────────────
+            // ── AI provider ───────────────────────────────────────────────────
+            { name: 'AZURE_OPENAI_ENDPOINT',              value: azureOpenAiEndpoint }
+            { name: 'AZURE_OPENAI_DEPLOYMENT_NAME',       value: 'gpt-4o' }
+            { name: 'AZURE_OPENAI_EMBEDDING_DEPLOYMENT',  value: 'text-embedding-3-small' }
+            { name: 'AZURE_OPENAI_API_VERSION',           value: '2024-08-01-preview' }
+            ...(!empty(azureOpenAiApiKey) ? [{ name: 'AZURE_OPENAI_API_KEY', secretRef: 'azure-openai-api-key' }] : [])
+
+            // ── Security ──────────────────────────────────────────────────────
             ...(!empty(apiKey)      ? [{ name: 'Veda__Security__ApiKey',      secretRef: 'api-key'       }] : [])
             ...(!empty(adminApiKey) ? [{ name: 'Veda__Security__AdminApiKey', secretRef: 'admin-api-key' }] : [])
-            { name: 'Veda__Security__AllowedOrigins', value: allowedOrigins    }
+            { name: 'Veda__Security__AllowedOrigins', value: allowedOrigins }
 
-            // ── Document Intelligence ──────────────────────────────────────────
-            { name: 'Veda__DocumentIntelligence__Endpoint', value: docIntelligence.properties.endpoint }
-            // ApiKey 留空 → 使用 Managed Identity
+            // ── Document Intelligence ─────────────────────────────────────────
+            { name: 'Veda__DocumentIntelligence__Endpoint', value: docIntelligenceEndpoint }
             { name: 'Veda__Vision__Enabled', value: 'true' }
 
             // ── Managed Identity client ID ────────────────────────────────────
-            { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
+            { name: 'AZURE_CLIENT_ID', value: identityClientId }
           ]
         }
       ]
@@ -157,6 +145,4 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
 
 output apiUrl string = 'https://${app.properties.configuration.ingress!.fqdn}'
 output containerAppName string = app.name
-output identityClientId string = identity.properties.clientId
-output identityPrincipalId string = identity.properties.principalId
-output docIntelligenceEndpoint string = docIntelligence.properties.endpoint
+output docIntelligenceEndpoint string = docIntelligenceEndpoint

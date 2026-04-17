@@ -2,9 +2,14 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { OllamaEmbeddingService } from "@/lib/services/ollama-embedding.service";
 import { OllamaChatService } from "@/lib/services/ollama-chat.service";
+import { AzureOpenAIEmbeddingService } from "@/lib/services/azure-openai-embedding.service";
+import { AzureOpenAIChatService } from "@/lib/services/azure-openai-chat.service";
 import { SqliteVectorStore } from "@/lib/vector-store/sqlite-vector-store";
 import { logger } from "@/lib/logger";
 import { VedaError } from "@/lib/errors";
+import { env } from "@/lib/env";
+import type { IEmbeddingService } from "@/lib/services/embedding.service";
+import type { IChatService } from "@/lib/services/chat.service";
 import type { VectorSearchResult } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,8 +70,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   let sources: VectorSearchResult[] = [];
 
   try {
-    // 1. Embed the question
-    const embeddingService = new OllamaEmbeddingService();
+    // 1. Embed the question — use Azure OpenAI when configured, else Ollama
+    const embeddingService: IEmbeddingService = env.azure.openai.isConfigured
+      ? new AzureOpenAIEmbeddingService()
+      : new OllamaEmbeddingService();
     const queryEmbedding = await embeddingService.embedQuery(question);
 
     // 2. Retrieve relevant chunks
@@ -79,8 +86,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     logger.info({ traceId, sourcesFound: sources.length }, "stream: starting");
 
-    // 4. Create SSE stream
-    const chatService = new OllamaChatService();
+    // 4. Create SSE stream — use Azure OpenAI when configured, else Ollama
+    const chatService: IChatService = env.azure.openai.isConfigured
+      ? new AzureOpenAIChatService()
+      : new OllamaChatService();
     const tokenIterable = chatService.chatStream([{ role: "user", content: prompt }], {
       systemPrompt: SYSTEM_PROMPT,
     });
@@ -112,16 +121,45 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   } catch (err) {
     if (err instanceof VedaError) {
-      logger.error({ code: err.code, traceId, message: err.message }, "stream: error");
+      logger.error(
+        {
+          code: err.code,
+          traceId,
+          message: err.message,
+          cause: err.cause instanceof Error ? err.cause.message : String(err.cause),
+        },
+        "stream: veda error",
+      );
       return new Response(JSON.stringify(err.toJSON()), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
     }
-    logger.error({ err, traceId }, "stream: unexpected error");
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+
+    // Handle generic errors with better logging
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+
+    logger.error(
+      {
+        traceId,
+        errorType: err?.constructor?.name ?? "Unknown",
+        message: errorMessage,
+        stack: errorStack,
+      },
+      "stream: unexpected error",
+    );
+
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error",
+        message: errorMessage,
+        traceId,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }

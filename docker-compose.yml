@@ -9,8 +9,8 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=file:/data/dev.db
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-      - OLLAMA_CHAT_MODEL=llama3.2
+      - OLLAMA_EMBEDDING_MODEL=bge-m3
+      - OLLAMA_CHAT_MODEL=qwen:7b-chat
       - LOG_LEVEL=info
     volumes:
       - sqlite-data:/data

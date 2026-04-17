@@ -10,7 +10,6 @@ out/
 *.db-journal
 *.db-wal
 *.db-shm
-prisma/migrations/
 
 # Env files — inject via runtime env vars
 .env
