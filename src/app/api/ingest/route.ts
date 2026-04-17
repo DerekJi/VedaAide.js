@@ -35,18 +35,49 @@ const ingestSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const body: unknown = await req.json();
-  const parsed = ingestSchema.safeParse(body);
+  const contentType = req.headers.get("content-type") || "";
+  let ingestData: z.infer<typeof ingestSchema>;
 
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.format() }, { status: 400 });
+  // Handle multipart form-data (file upload)
+  if (contentType.includes("multipart/form-data")) {
+    try {
+      const formData = await req.formData();
+      const file = formData.get("file");
+
+      if (!file || !(file instanceof File)) {
+        return NextResponse.json(
+          { error: "file field is required and must be a file" },
+          { status: 400 },
+        );
+      }
+
+      const content = await file.text();
+      ingestData = {
+        content,
+        source: file.name,
+        metadata: undefined,
+      };
+    } catch (err) {
+      logger.error({ err }, "failed to parse multipart form-data");
+      return NextResponse.json({ error: "Invalid multipart form-data" }, { status: 400 });
+    }
+  } else {
+    // Handle JSON
+    const body: unknown = await req.json();
+    const parsed = ingestSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.format() }, { status: 400 });
+    }
+
+    ingestData = parsed.data;
   }
 
   const ragService = new RagService(new OllamaEmbeddingService(), new OllamaChatService());
 
   try {
-    const result = await ragService.ingest(parsed.data);
-    logger.info({ source: parsed.data.source, fileId: result.fileId }, "POST /api/ingest");
+    const result = await ragService.ingest(ingestData);
+    logger.info({ source: ingestData.source, fileId: result.fileId }, "POST /api/ingest");
     return NextResponse.json(result, { status: result.skipped ? 200 : 201 });
   } catch (err) {
     if (err instanceof VedaError) {
