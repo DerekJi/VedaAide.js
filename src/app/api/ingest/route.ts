@@ -3,9 +3,14 @@ import { z } from "zod";
 import { RagService } from "@/lib/services/rag.service";
 import { OllamaEmbeddingService } from "@/lib/services/ollama-embedding.service";
 import { OllamaChatService } from "@/lib/services/ollama-chat.service";
+import { AzureOpenAIEmbeddingService } from "@/lib/services/azure-openai-embedding.service";
+import { AzureOpenAIChatService } from "@/lib/services/azure-openai-chat.service";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { VedaError } from "@/lib/errors";
+import { env } from "@/lib/env";
+import type { IEmbeddingService } from "@/lib/services/embedding.service";
+import type { IChatService } from "@/lib/services/chat.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/ingest  – List all synced files (most recent first)
@@ -73,7 +78,16 @@ export async function POST(req: NextRequest) {
     ingestData = parsed.data;
   }
 
-  const ragService = new RagService(new OllamaEmbeddingService(), new OllamaChatService());
+  // Use Azure OpenAI when configured, else Ollama
+  const embeddingService: IEmbeddingService = env.azure.openai.isConfigured
+    ? new AzureOpenAIEmbeddingService()
+    : new OllamaEmbeddingService();
+
+  const chatService: IChatService = env.azure.openai.isConfigured
+    ? new AzureOpenAIChatService()
+    : new OllamaChatService();
+
+  const ragService = new RagService(embeddingService, chatService);
 
   try {
     const result = await ragService.ingest(ingestData);
